@@ -71,7 +71,13 @@ OAuth connection — there is no API token.
    bash "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
    ```
 
-8. **Confirm** with links to both databases and tell the user they can now run
+8. **Create views on the Sessions database** for at-a-glance browsing (uses the
+   Sessions `database_id` + data source id from step 6):
+   - `notion-create-view` type `calendar`, configure `CALENDAR BY "Date"`.
+   - `notion-create-view` type `board`, configure `GROUP BY "Status" SORT BY "Date" ASC`.
+   (A `chart` view — e.g. count by `Type` — is worth adding once sessions accumulate.)
+
+9. **Confirm** with links to both databases and tell the user they can now run
    `/iroha-for-notion:save-session`.
 
 ## Notes
