@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "iroha-for-notion",
+  "owner": { "name": "Shunichi Hirata" },
+  "description": "iroha-for-notion marketplace (single-plugin, self-hosted)",
+  "plugins": [
+    {
+      "name": "iroha-for-notion",
+      "source": "./",
+      "description": "Persist Claude Code sessions to Notion as a living, queryable project memory: decisions (with rationale and rejected alternatives), dev rules, work-state, and a cleaned chat log.",
+      "homepage": "https://github.com/hir4ta/iroha-for-notion",
+      "repository": "https://github.com/hir4ta/iroha-for-notion",
+      "license": "MIT",
+      "keywords": ["notion", "memory", "session", "knowledge-base", "decision-log", "recall"]
+    }
+  ]
+}

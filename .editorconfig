@@ -1,0 +1,17 @@
+# editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+indent_size = 2
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown: trailing whitespace can be a hard line break — don't trim.
+[*.md]
+trim_trailing_whitespace = false
+
+# Shell: keep 2-space (matches shfmt -i 2 if used).
+[*.sh]
+indent_size = 2

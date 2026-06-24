@@ -1,0 +1,12 @@
+# dependencies / build
+node_modules/
+dist/
+coverage/
+
+# env / local
+.env
+.env.local
+*.log
+
+# OS
+.DS_Store

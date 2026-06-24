@@ -1,0 +1,21 @@
+# typos config — https://github.com/crate-ci/typos
+# docs/ is Japanese-heavy (false positives); lint only code / config / bash.
+
+[default]
+extend-ignore-re = [
+  # commit / object hashes, Notion IDs (lowercase hex, 7+ chars)
+  "[0-9a-f]{7,64}",
+]
+
+[default.extend-words]
+iroha = "iroha"
+
+[files]
+extend-exclude = [
+  "docs/",
+  "node_modules/",
+  "dist/",
+  "coverage/",
+  "package-lock.json",
+  "tests/fixtures/",
+]

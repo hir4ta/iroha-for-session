@@ -1,0 +1,61 @@
+# pre-commit (https://pre-commit.com) — local quality gate before push.
+# Mirrors CI so failures surface locally first.
+# rev pinned to immutable tags. Update with `pre-commit autoupdate`.
+# Setup: `pre-commit install && pre-commit install --hook-type pre-push`
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^docs/
+      - id: end-of-file-fixer
+        exclude: ^docs/
+      - id: check-yaml
+      - id: check-json
+        exclude: ^biome\.json$ # JSONC (comments allowed)
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  # biome — lint + format + import sort for JSON / JS / TS (uses the project biome).
+  - repo: local
+    hooks:
+      - id: biome
+        name: biome check (write)
+        entry: npx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json]
+        require_serial: false
+
+  # shellcheck — static analysis for the bash runtime (scripts/, hooks/, tests/).
+  # Keep BSD/macOS compatible (no 3-arg awk, etc.).
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.46.0
+    hooks:
+      - id: typos
+        pass_filenames: false # use _typos.toml [files]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # Behavioral tests are the oracle — run on push (mirror CI).
+  - repo: local
+    hooks:
+      - id: test-bash
+        name: bash selftest
+        entry: npm run test:bash
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: \.(sh|bats)$

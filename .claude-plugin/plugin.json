@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "iroha-for-notion",
+  "version": "0.1.0",
+  "description": "Persist Claude Code sessions to Notion as a living, queryable project memory: decisions (with rationale and rejected alternatives), dev rules, work-state (done / unfinished), and a cleaned chat log — so humans and future sessions can recall them.",
+  "author": {
+    "name": "Shunichi Hirata"
+  },
+  "homepage": "https://github.com/hir4ta/iroha-for-notion",
+  "repository": "https://github.com/hir4ta/iroha-for-notion",
+  "license": "MIT",
+  "keywords": [
+    "notion",
+    "memory",
+    "session",
+    "knowledge-base",
+    "decision-log",
+    "recall"
+  ]
+}

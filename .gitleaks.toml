@@ -1,0 +1,9 @@
+# gitleaks — secret scanning. Inherit the default ruleset; allow test fixtures.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "test fixtures contain synthetic, non-secret transcript data"
+paths = [
+  '''tests/fixtures/''',
+]

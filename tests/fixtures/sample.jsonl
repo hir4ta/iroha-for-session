@@ -1,0 +1,10 @@
+{"type":"ai-title","aiTitle":"Add login endpoint","sessionId":"s1"}
+{"type":"user","isSidechain":false,"timestamp":"2026-06-24T01:00:00Z","cwd":"/repo","gitBranch":"main","sessionId":"s1","message":{"role":"user","content":"Please add a login endpoint"}}
+{"type":"assistant","isSidechain":false,"timestamp":"2026-06-24T01:00:05Z","cwd":"/repo","gitBranch":"main","sessionId":"s1","message":{"role":"assistant","model":"claude-x","content":[{"type":"thinking","thinking":"SECRET THOUGHTS should not appear"},{"type":"text","text":"Sure, I'll add it."}]}}
+{"type":"assistant","isSidechain":false,"sessionId":"s1","message":{"role":"assistant","content":[{"type":"tool_use","name":"Write","input":{"file_path":"src/login.ts"}}]}}
+{"type":"user","isSidechain":false,"toolUseResult":{"ok":true},"sessionId":"s1","message":{"role":"user","content":[{"type":"tool_result","content":"FILE WRITTEN noise"}]}}
+{"type":"assistant","isSidechain":false,"sessionId":"s1","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"npm test\necho done","description":"run tests"}}]}}
+{"type":"assistant","isSidechain":false,"sessionId":"s1","message":{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{"file_path":"src/login.ts"}}]}}
+{"type":"assistant","isSidechain":true,"sessionId":"s1","message":{"role":"assistant","content":[{"type":"text","text":"SIDECHAIN should not appear"}]}}
+{"type":"assistant","isSidechain":false,"timestamp":"2026-06-24T01:05:00Z","sessionId":"s1","message":{"role":"assistant","content":[{"type":"text","text":"Done, the endpoint is added."}]}}
+{"type":"user","isSidechain":false,"sessionId":"s1","message":{"role":"user","content":"<task-notification>\nNOISE-TASKNOTIF should be excluded\n</task-notification>"}}
