@@ -54,9 +54,23 @@ iroha_config_set_state_page() {
   jq --arg p "$1" --arg id "$2" '.state_pages[$p] = $id' "$f" >"$tmp" && mv "$tmp" "$f"
 }
 
+# iroha_state_md_path <cwd>  -> local mirror of the project's State markdown
+# (read by the SessionStart hook, which cannot reach Notion).
+iroha_state_md_path() {
+  local base key
+  base="$(dirname "$(iroha_config_path)")"
+  key="$(printf '%s' "$1" | sed 's#/#-#g')"
+  printf '%s/state/%s.md' "$base" "$key"
+}
+
+# iroha_saved_dir  -> directory of per-session "saved" markers.
+iroha_saved_dir() { printf '%s/saved' "$(dirname "$(iroha_config_path)")"; }
+
 # CLI: usable from skills as `bash config.sh <cmd> ...`. Guarded so sourcing is a no-op.
 if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
   case "${1:-}" in
+    state-md-path) iroha_state_md_path "${2:-}" ;;
+    saved-dir) iroha_saved_dir ;;
     get) iroha_config_get "${2:-}" ;;
     set) iroha_config_set "${2:-}" "${3:-}" ;;
     get-state) iroha_config_get_state_page "${2:-}" ;;

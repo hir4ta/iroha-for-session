@@ -9,6 +9,7 @@
   "homepage": "https://github.com/hir4ta/iroha-for-notion",
   "repository": "https://github.com/hir4ta/iroha-for-notion",
   "license": "MIT",
+  "hooks": "./hooks/hooks.json",
   "keywords": [
     "notion",
     "memory",

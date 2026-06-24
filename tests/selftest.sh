@@ -86,5 +86,28 @@ eq config-state-roundtrip "PAGE9" "$(iroha_config_get_state_page "/repo/foo")"
 eq config-state-missing "" "$(iroha_config_get_state_page "/repo/bar")"
 rm -rf "$CLAUDE_PLUGIN_DATA"
 
+echo "=== session-start hook (state injection + save reminder) ==="
+HOOKHOME=$(mktemp -d "${TMPDIR:-/tmp}/iroha-home.XXXXXX")
+HOOKDATA=$(mktemp -d "${TMPDIR:-/tmp}/iroha-data.XXXXXX")
+PROJ="/tmp/iroha-proj"
+HASH="-tmp-iroha-proj"
+mkdir -p "$HOOKHOME/.claude/projects/$HASH" "$HOOKDATA/state"
+: >"$HOOKHOME/.claude/projects/$HASH/old.jsonl"
+printf 'STATE-CONTENT-XYZ' >"$HOOKDATA/state/${HASH}.md"
+run_hook() {
+  printf '{"cwd":"%s","session_id":"cur"}' "$PROJ" |
+    CLAUDE_PLUGIN_ROOT="$HERE/.." CLAUDE_PLUGIN_DATA="$HOOKDATA" HOME="$HOOKHOME" \
+      bash "$HERE/../hooks/session-start.sh"
+}
+out=$(run_hook)
+has hook-injects-state "STATE-CONTENT-XYZ" "$out"
+has hook-reminds-unsaved "未保存" "$out"
+has hook-json-shape "hookSpecificOutput" "$out"
+mkdir -p "$HOOKDATA/saved" && : >"$HOOKDATA/saved/old"
+hasnt hook-no-remind-when-saved "未保存" "$(run_hook)"
+rm -f "$HOOKDATA/state/${HASH}.md" "$HOOKHOME/.claude/projects/$HASH/old.jsonl"
+eq hook-silent-when-empty "" "$(run_hook)"
+rm -rf "$HOOKHOME" "$HOOKDATA"
+
 echo "=== result: $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]

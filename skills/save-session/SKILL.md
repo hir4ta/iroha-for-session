@@ -115,11 +115,15 @@ rules, and the carried-over **Unfinished / Next** list.
   (title `State — <project>`, icon `https://www.notion.so/icons/target_gray.svg`),
   then `bash …/config.sh set-state "$PROJ" "<page_id>"`.
 - Else: `notion-update-page` `replace_content` on that page id.
+- **Also mirror the State body to a local file** so the SessionStart hook can inject
+  it without Notion access:
+  `MD="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" state-md-path "$PWD")"; mkdir -p "$(dirname "$MD")"; printf '%s' "<state body>" > "$MD"`.
 
 ## 9. Mark saved + report
 
 ```bash
-mkdir -p "${CLAUDE_PLUGIN_DATA}/saved" && : > "${CLAUDE_PLUGIN_DATA}/saved/${CLAUDE_SESSION_ID}"
+SAVED="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" saved-dir)"
+mkdir -p "$SAVED" && : > "$SAVED/${CLAUDE_SESSION_ID}"
 ```
 
 Report the Session page URL, how many decisions were recorded, how many chat batches
