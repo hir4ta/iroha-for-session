@@ -10,3 +10,7 @@ coverage/
 
 # OS
 .DS_Store
+
+# Claude Code local / dogfood state (not part of the distributable plugin)
+.claude/settings.json
+.claude/settings.local.json
