@@ -1,10 +1,10 @@
 ---
 name: init
-description: One-time setup for iroha-for-notion. Creates the Sessions and Decisions databases in the user's Notion via the connected Notion MCP, then records their ids locally. Run before the first /save-session, or to reconnect / join a teammate's existing iroha workspace. Triggers on "/iroha-for-notion:init", "set up iroha", "initialize notion memory".
+description: One-time setup for iroha-for-notion. Creates the Sessions and Decisions databases in the user's Notion via the connected Notion MCP, then records their ids locally. Run before the first /save-session, or to reconnect / join a teammate's existing iroha workspace. Triggers on "/iroha:init", "set up iroha", "initialize notion memory".
 argument-hint: "[notion-parent-page-url]"
 ---
 
-# iroha-for-notion: init
+# iroha: init
 
 Set up (or join) the Notion workspace iroha writes sessions to. Idempotent:
 pointing it at a page that already has `Sessions` / `Decisions` databases reuses
@@ -78,7 +78,7 @@ OAuth connection — there is no API token.
    (A `chart` view — e.g. count by `Type` — is worth adding once sessions accumulate.)
 
 9. **Confirm** with links to both databases and tell the user they can now run
-   `/iroha-for-notion:save-session`.
+   `/iroha:save-session`.
 
 ## Notes
 

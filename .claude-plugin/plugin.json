@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-  "name": "iroha-for-notion",
+  "name": "iroha",
   "version": "0.1.0",
   "description": "Persist Claude Code sessions to Notion as a living, queryable project memory: decisions (with rationale and rejected alternatives), dev rules, work-state (done / unfinished), and a cleaned chat log — so humans and future sessions can recall them.",
   "author": {

@@ -5,7 +5,7 @@
   "description": "iroha-for-notion marketplace (single-plugin, self-hosted)",
   "plugins": [
     {
-      "name": "iroha-for-notion",
+      "name": "iroha",
       "source": "./",
       "description": "Persist Claude Code sessions to Notion as a living, queryable project memory: decisions (with rationale and rejected alternatives), dev rules, work-state, and a cleaned chat log.",
       "homepage": "https://github.com/hir4ta/iroha-for-notion",

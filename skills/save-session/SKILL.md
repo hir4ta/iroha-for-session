@@ -1,10 +1,10 @@
 ---
 name: save-session
-description: Save the current Claude Code session to Notion as structured, visual, queryable memory — decisions (with rationale and rejected alternatives), dev rules, work-state (done / unfinished), changed files, key commands, and the full human<->Claude chat log. Use at the end of a working session, or when the user says "save this session" / "セッションを保存" / "まとめて保存". Requires a connected Notion MCP and a prior /iroha-for-notion:init.
+description: Save the current Claude Code session to Notion as structured, visual, queryable memory — decisions (with rationale and rejected alternatives), dev rules, work-state (done / unfinished), changed files, key commands, and the full human<->Claude chat log. Use at the end of a working session, or when the user says "save this session" / "セッションを保存" / "まとめて保存". Requires a connected Notion MCP and a prior /iroha:init.
 argument-hint: "[Complete|WIP|Interrupted]"
 ---
 
-# iroha-for-notion: save-session
+# iroha: save-session
 
 Persist this session to Notion so humans and future Claude sessions can recall what
 was decided, what is unfinished, and why. You produce the intelligence (summary,
@@ -18,7 +18,7 @@ Confirm Notion MCP is connected, then load the cached ids:
 
 ```bash
 L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
-bash "$L" get session_ds_id    # empty -> tell the user to run /iroha-for-notion:init, then stop
+bash "$L" get session_ds_id    # empty -> tell the user to run /iroha:init, then stop
 bash "$L" get decisions_ds_id
 bash "$L" get container_page_id
 ```
@@ -91,7 +91,7 @@ For each decision, `notion-create-pages` under `decisions_ds_id`: `Name` = the
 decision, `Project`, `Status` = `Active`, `Tags` (JSON array string), `Rationale`,
 `Alternatives`, `Session` = the Session page URL from step 5, `"date:Date:start"`.
 
-Also append each decision to the **local decision log** so `/iroha-for-notion:recall`
+Also append each decision to the **local decision log** so `/iroha:recall`
 can search it for free (offline; the Notion MCP query tools need a paid plan):
 
 ```bash

@@ -1,10 +1,10 @@
 ---
 name: recall
-description: Search this project's past decisions recorded by iroha — answers "did we decide against X before?", "why did we choose Y?". Works offline and free (greps the local decision mirror; no Notion access needed). Triggers on "/iroha-for-notion:recall", and naturally when the user asks "過去に〜決めた?", "なぜ〜にした?", "did we decide / why did we".
+description: Search this project's past decisions recorded by iroha — answers "did we decide against X before?", "why did we choose Y?". Works offline and free (greps the local decision mirror; no Notion access needed). Triggers on "/iroha:recall", and naturally when the user asks "過去に〜決めた?", "なぜ〜にした?", "did we decide / why did we".
 argument-hint: "<query>"
 ---
 
-# iroha-for-notion: recall
+# iroha: recall
 
 Answer "have we decided this before / why" from iroha's local decision mirror —
 free and offline. (The Notion MCP query/search tools require a paid Business plan +
