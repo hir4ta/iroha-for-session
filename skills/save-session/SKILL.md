@@ -289,6 +289,12 @@ mkdir -p "$(dirname "$MD")"
 cat > "$MD" <<'STATE'
 <the composed State body — real newlines, all four sections above>
 STATE
+# Validate the mirror BEFORE publishing — this is the deterministic guard against the
+# State-corruption class that degraded a past save (literal \n/\t escapes, sections dropped to a
+# summary-only callout). If it prints any issue, FIX the body and rewrite "$MD" until it is clean;
+# never publish a State that fails the lint. Because the mirror and Notion are byte-identical
+# (single source), a clean mirror means a clean Notion page.
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$MD"
 ```
 Then publish the **exact same text** (the file you just wrote) to Notion — same headings,
 same links, same lines; do not re-summarize or re-format it:

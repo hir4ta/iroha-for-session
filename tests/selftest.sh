@@ -259,5 +259,28 @@ sc2=$(env -u CLAUDE_PLUGIN_ROOT IROHA_CONFIG_DIR="$RIDATA" \
 has ri-selfcheck-derives-root "READY" "$sc2"
 rm -rf "$RIDATA" "$RIDATA2" "$RIDATA3" "$RIPROJ" "$RICACHE"
 
+echo "=== state-lint (State body validator: escapes, missing sections, summary, real mirror) ==="
+# shellcheck disable=SC1091 # dynamic source path; the file exists at runtime
+. "$HERE/../scripts/_lib/state-lint.sh"
+SLDIR=$(mktemp -d "${TMPDIR:-/tmp}/iroha-sl.XXXXXX")
+# good: real newlines, a summary line, and the three required sections -> clean (exit 0).
+printf '%s\n' '**Latest (2026-06-25):** did things.' '## Recent sessions' '- [x — y](u)' \
+  '## Unfinished / Next' '- [ ] thing' '## Decisions' '- [Decisions DB](u)' >"$SLDIR/good.md"
+eq state-lint-good "0" "$(iroha_state_lint "$SLDIR/good.md" >/dev/null 2>&1; echo $?)"
+# bad: literal \n / \t escape leak on one line (the exact corruption that degraded a past State).
+printf '%s' '**Latest:** a\nb\t## Recent sessions\n## Unfinished\n## Decisions' >"$SLDIR/escape.md"
+eq state-lint-escape-fail "1" "$(iroha_state_lint "$SLDIR/escape.md" >/dev/null 2>&1; echo $?)"
+has state-lint-escape-msg "escape sequence" "$(iroha_state_lint "$SLDIR/escape.md" 2>&1)"
+# bad: degraded to a summary-only callout (no sections) -> fail.
+printf '%s\n' '**Latest (2026-06-25):** only a summary, sections were dropped.' >"$SLDIR/summaryonly.md"
+eq state-lint-summaryonly-fail "1" "$(iroha_state_lint "$SLDIR/summaryonly.md" >/dev/null 2>&1; echo $?)"
+# bad: empty/missing file -> fail (never publish an empty State).
+: >"$SLDIR/empty.md"
+eq state-lint-empty-fail "1" "$(iroha_state_lint "$SLDIR/empty.md" >/dev/null 2>&1; echo $?)"
+# the project's REAL committed mirror must pass — guards against false positives AND makes CI fail
+# if a corrupt State is ever committed (the recurring rot class, now caught at green/push time).
+eq state-lint-real-mirror "0" "$(iroha_state_lint "$HERE/../.iroha/state.md" >/dev/null 2>&1; echo $?)"
+rm -rf "$SLDIR"
+
 echo "=== result: $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]

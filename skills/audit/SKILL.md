@@ -44,7 +44,12 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   reversed. Flag the older one. (high)
 - **C. Orphaned decisions** — a decision whose `Session` URL is empty or does not resolve
   (`notion-fetch` 404). The "why" loses its anchor. (medium)
-- **D. State drift** — `notion-fetch` the State page and compare:
+- **D. State drift** — first run the **deterministic** lint on the local mirror (byte-identical
+  to the Notion page under save-session's single-source rule), then `notion-fetch` the page for
+  the judgement checks below:
+  `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$(bash "$L" state-md-path "$PWD")"`
+  flags the **escape-leak** and **dropped-section** classes mechanically (the two that recurred);
+  treat any issue it prints as a high-confidence finding. Then compare against Notion:
   - its header summary vs the newest Session's `Summary` (stale if it names an older
     state, e.g. "2 DB" when the newest session is "3 DB"); (medium)
   - its **Recent sessions** links vs the actual newest Sessions (missing/wrong); (medium)
