@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Persist Claude Code sessions to Notion as a living project memory.",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "lint": "biome check .",
     "format": "biome check --write .",

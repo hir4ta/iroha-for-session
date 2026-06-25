@@ -11,7 +11,16 @@
       "homepage": "https://github.com/hir4ta/iroha-for-notion",
       "repository": "https://github.com/hir4ta/iroha-for-notion",
       "license": "MIT",
-      "keywords": ["notion", "memory", "session", "knowledge-base", "decision-log", "recall", "architecture", "cross-project"]
+      "keywords": [
+        "notion",
+        "memory",
+        "session",
+        "knowledge-base",
+        "decision-log",
+        "recall",
+        "architecture",
+        "cross-project"
+      ]
     }
   ]
 }
