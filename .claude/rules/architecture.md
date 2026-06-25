@@ -6,8 +6,9 @@
   **API トークンは使わない**。認証は MCP の OAuth のみ (配布ユーザーは MCP 接続だけ)。
 - **relation プロパティは使わない**。MCP の relation 書き込みに既知バグ (makenotion/notion-mcp-server
   Issue #45)。Session↔Decision は **URL プロパティ**で連結。安定確認後にネイティブ relation へ昇格可。
-- **決定論抽出は bash**。`scripts/extract.sh` が transcript JSONL から chat/files/commands/meta を
-  read-only で抽出。stdout = 要求されたビューのみ、診断ログは **必ず stderr**。
+- **決定論抽出は bash**。`scripts/extract.sh` が transcript JSONL から files/commands/meta を
+  read-only で抽出（壊れ/切り詰め行は `fromjson?` でスキップし全滅させない）。stdout = 要求された
+  ビューのみ、診断ログは **必ず stderr**。
 - **知性は Claude 本体 (スキル内)**。要約・決定抽出・Type 分類は `/save-session` の中で Claude が行う。
   コードから Anthropic API を呼ばない。
 - **append 非対応を前提に設計**。Session ページ = 作成のみ (1 回で全部書く)、Project State = 毎回

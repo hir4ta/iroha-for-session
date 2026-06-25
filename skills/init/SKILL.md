@@ -7,10 +7,11 @@ argument-hint: "[notion-parent-page-url]"
 # iroha: init
 
 Set up (or join) the Notion workspace iroha writes sessions to. Idempotent:
-pointing it at a page that already has `Sessions` / `Decisions` databases reuses
-them instead of creating duplicates. All ids are cached in
-`${CLAUDE_PLUGIN_DATA}/config.json` (non-secret). Auth is the user's **Notion MCP**
-OAuth connection — there is no API token.
+pointing it at a page that already has `Sessions` / `Decisions` / `Projects` databases
+reuses them instead of creating duplicates. All ids are cached in
+`$HOME/.iroha-for-notion/config.json` (non-secret; override the dir with
+`IROHA_CONFIG_DIR`). Auth is the user's **Notion MCP** OAuth connection — there is no
+API token.
 
 ## Steps
 
@@ -53,7 +54,7 @@ OAuth connection — there is no API token.
 
    ```
    parent: {"type":"page_id","page_id":"<PAGE_ID>"}   title: "Decisions"
-   schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-notion':blue), "Status" SELECT('Active':green, 'Superseded':gray, 'Reverted':red), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Date" DATE)
+   schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-notion':blue), "Status" SELECT('Active':green, 'Superseded':gray), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Date" DATE)
    ```
 
    Projects (one row per project — the cross-project architecture layer for catch-up
