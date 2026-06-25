@@ -52,6 +52,12 @@ All notable changes to iroha are documented here. The format loosely follows
   local BM25 ranking, complete enumeration, abstention, and sub-timeout latency still hold at
   ~320 rows ("hundreds of sessions"), so "does recall hold up as the memory grows?" is a
   measured property rather than a hope.
+- **`/iroha:check`** — reconcile the current working changes (uncommitted diff + new untracked
+  files + recent commits) against the project's **Active decisions** and flag conflicts *before*
+  you commit / open a PR ("this diff adds a `relation` property, but `Link: URL not relation` is
+  Active — here's the rationale"). Read-only — the git-reality → Decisions bridge; a genuine,
+  intentional course-reversal is recorded (superseded, never overwritten) via
+  `/iroha:save-session`, not here.
 - **State pre-publish validator** (`scripts/_lib/state-lint.sh`): lints the State mirror —
   byte-identical to the Notion page under the single-source rule — for literal `\n`/`\t` escape
   leaks, dropped sections, and a missing summary *before* publishing. Wired into `save-session`

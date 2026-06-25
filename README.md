@@ -98,6 +98,7 @@ In Claude Code:
 | `/iroha:project` | Capture/update this project's architecture profile (manual). |
 | `/iroha:digest [week\|month\|range]` | Roll a period up into one digest: decisions, sessions, aggregate metrics, what's still open, and a timeline. |
 | `/iroha:audit [--fix]` | Health-check the memory (duplicate decisions, State drift, stale items); optionally apply safe, reversible fixes. |
+| `/iroha:check` | Check the current working changes (git diff + new files) against the project's Active decisions and flag conflicts before you commit. Read-only. |
 
 ## What iroha is **not**
 
