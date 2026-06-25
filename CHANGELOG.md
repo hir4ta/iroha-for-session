@@ -18,6 +18,10 @@ All notable changes to iroha are documented here. The format loosely follows
   stale carry-overs, orphaned decisions, structure drift) and optionally apply safe,
   reversible fixes with `--fix`.
 - SessionStart hook surfaces a carried-over open-item count banner.
+- SessionStart hook re-injects the **current session's conversation** (your prompts +
+  a capped recent tail, read from the on-disk transcript) after `/compact` or
+  auto-compact (`source=compact`), so the thread survives compaction. Line-based caps
+  keep multibyte text from being split mid-character.
 
 ### Changed
 

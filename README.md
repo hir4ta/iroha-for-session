@@ -29,7 +29,9 @@ changed, and why.
   Auth is the MCP's OAuth, so setup is a single connection. Recall uses `notion-search`,
   which works on the **free** Notion plan.
 - A SessionStart hook injects the project's **State** (from a small repo mirror) so
-  Claude proactively tells you where you left off and what's unfinished.
+  Claude proactively tells you where you left off and what's unfinished. After `/compact`
+  or auto-compact it also **re-injects the current session's own thread** (your prompts +
+  a capped recent tail), so the conversation survives compaction.
 - Each saved session also carries a **metrics dashboard** (turns, tool calls, files,
   duration) and a collapsed **full-chat audit trail**. `/iroha:digest` rolls a week or
   month into one page; `/iroha:audit` keeps the growing memory clean (duplicate

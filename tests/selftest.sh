@@ -135,6 +135,14 @@ has hook-open-count "Open items carried over" "$out"
 has hook-json-shape "hookSpecificOutput" "$out"
 mkdir -p "$HOOKDATA/saved" && : >"$HOOKDATA/saved/old"
 hasnt hook-no-remind-when-saved "not saved" "$(run_hook)"
+# compaction restart (source=compact) re-injects THIS session's conversation from its transcript
+printf '{"type":"user","isSidechain":false,"message":{"role":"user","content":"COMPACT-RECAP-PROMPT please"}}\n' >"$HOOKHOME/.claude/projects/$HASH/cur.jsonl"
+cout=$(printf '{"cwd":"%s","session_id":"cur","source":"compact"}' "$PROJ" |
+  CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$HOOKDATA" HOME="$HOOKHOME" \
+    bash "$HERE/../hooks/session-start.sh")
+has hook-compact-recap "re-injected after compaction" "$cout"
+has hook-compact-prompt "COMPACT-RECAP-PROMPT" "$cout"
+rm -f "$HOOKHOME/.claude/projects/$HASH/cur.jsonl"
 rm -f "$PROJ/.iroha/state.md" "$HOOKHOME/.claude/projects/$HASH/old.jsonl"
 eq hook-silent-when-empty "" "$(run_hook)"
 # missing CLAUDE_PLUGIN_ROOT must exit 0 silently, not crash under set -u

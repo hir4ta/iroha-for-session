@@ -42,6 +42,9 @@
   Stop の exit 2 ブロックは使わない。State ミラー注入時に「実装前に `/iroha:recall` で過去の
   類似事例を確認」も促す。hook の注入テキスト（wrapper）は **配布コードなので英語**、本文の
   State は会話言語（= ユーザーデータ）。未完了 `- [ ]` 件数のバナーも算出して添える。
+  `source=compact`（`/compact`・auto-compact 後）は現在セッションのトランスクリプトから会話
+  (prompts ＋ chat 直近) を再注入してスレッドを復元する（行単位 cap でマルチバイト非分割。Notion
+  非到達の不変は維持＝ローカル transcript のみ読む）。
 - **派生スキルは正本を汚さない**。`/iroha:digest` (期間ロールアップ) と `/iroha:audit`
   (記憶の健全性監査=重複決定/State ドリフト/陳腐化の検出) は `notion-search` で読むだけ。
   digest は container 配下に使い捨ての Digest ページを 1 枚書く (専用 DB は作らない)。audit の
