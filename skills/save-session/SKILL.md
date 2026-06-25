@@ -116,9 +116,12 @@ show Project / Status / Type / Date / Branch / Author at the top:
    (columns: Decision / Why / Rejected alternatives);
 5. `## Progress` as a green_bg callout (Done) + an orange_bg callout (Unfinished, `- [ ]`);
 6. `## Highlights` — 5-8 pivotal exchanges as alternating chat-style callouts
-   (You = `blue_bg`, Claude = `gray_bg`); the **You** lines come from the `prompts`
-   extract (real messages, never invented), Claude lines are paraphrased — **not** the
-   full chat (see step 7);
+   (You = `blue_bg`, Claude = `gray_bg`), **wrapped in a `<details>` toggle so they are
+   collapsed by default and expand on click** (the section is long — keep the page
+   scannable). Give the `<summary>` a label in the user's language (English canonical e.g.
+   `Highlights (N exchanges)`), and **tab-indent the callouts inside the toggle**. The
+   **You** lines come from the `prompts` extract (real messages, never invented), Claude
+   lines are paraphrased — **not** the full chat (see step 7);
 7. `## Rules changed` *(optional — only when this session established or changed a rule)*
    as a `<callout color="gray_bg">`; omit the whole section when no rule changed;
 8. `## Failures` *(optional — only when there were notable pitfalls)* as a
