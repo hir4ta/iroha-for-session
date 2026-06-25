@@ -65,6 +65,25 @@ has prompts-human "Please add a login endpoint" "$prompts"
 hasnt prompts-no-toolresult "FILE WRITTEN" "$prompts"
 hasnt prompts-no-tasknotif "NOISE-TASKNOTIF" "$prompts"
 
+echo "=== extract stats (metrics dashboard numbers) ==="
+stats=$(bash "$EXTRACT" stats "$FIX")
+eq stats-valid-json "ok" "$(printf '%s' "$stats" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
+eq stats-userturns "1" "$(printf '%s' "$stats" | jq -r '.userTurns')"
+eq stats-files "1" "$(printf '%s' "$stats" | jq -r '.filesEdited')"
+eq stats-duration "5" "$(printf '%s' "$stats" | jq -r '.durationMin')"
+
+echo "=== extract tools (per-tool tally) ==="
+tools=$(bash "$EXTRACT" tools "$FIX")
+has tools-bash "Bash" "$tools"
+
+echo "=== extract chat (cleaned full chat, no noise) ==="
+chat=$(bash "$EXTRACT" chat "$FIX")
+has chat-you "Please add a login endpoint" "$chat"
+has chat-claude "the endpoint is added" "$chat"
+hasnt chat-no-thinking "SECRET THOUGHTS" "$chat"
+hasnt chat-no-toolresult "FILE WRITTEN" "$chat"
+hasnt chat-no-sidechain "SIDECHAIN" "$chat"
+
 echo "=== extract tolerates truncated / malformed lines ==="
 BROKEN=$(mktemp "${TMPDIR:-/tmp}/iroha-broken.XXXXXX")
 cat "$FIX" >"$BROKEN"
