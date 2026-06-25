@@ -53,6 +53,24 @@ check, consult the local index — exhaustive where search is not:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh" find-topic "$PWD" "<topic>"
 ```
 
+## 2c. Cross-check the complete local index (hybrid recall)
+
+`notion-search` returns only a top-N semantic slice, and **a just-saved decision is missing
+from its index for a few minutes** (Notion search has write-lag). So also enumerate the
+*complete, instantly-current* local index and pick anything relevant that search missed:
+
+```bash
+IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
+bash "$IDX" list "$PWD" decision   # every decision: id / topic / status / date / title
+bash "$IDX" list "$PWD" session    # every session
+```
+
+Read the titles/topics, pick any that match the query but were **not** already returned by
+search, and `notion-fetch` those by id for full content. Merge with the search hits, dedup by
+id, then rank (step 2b). This makes recall **complete** (the index has every row) and
+**fresh** (it includes work saved moments ago) — search alone is neither. If the index is
+empty/stale (a workspace predating it), say so and fall back to search only.
+
 ## 3. Synthesize a reusable answer (in the user's language)
 
 - **Decision query**: the decision, *why*, the rejected alternatives, the date, and
@@ -82,16 +100,16 @@ answer as if it were recalled. LLMs default to fabricating rather than abstainin
 unsolved failure mode that does not improve with scale — AbstentionBench), so a confidently
 wrong recall is worse than an honest miss.
 
-**Scope every negative to the search terms, not to existence.** On the free plan
-`notion-search` returns top-N semantic hits, not a complete table scan, so a miss means
-*not found for these terms* — never *no such decision exists*. Before concluding something
-was never decided, retry with different terms and, for a completeness-critical question, run
-`/iroha:audit` (it enumerates the local `.iroha/index.ndjson`, which is exhaustive where
-search is not).
+**Scope every negative correctly.** For decisions/sessions the hybrid index cross-check
+(step 2c) *is* exhaustive, so if neither search nor the index has a relevant entry you can
+say "no such decision exists" with confidence. For anything the index does **not** cover
+(e.g. free-text deep inside a page body), a `notion-search` miss only means *not found for
+these terms* — retry with different terms before concluding it is absent.
 
 ## Notes
 
-- Recall needs the Notion MCP (online). There is **no offline mirror** — Notion is the
-  one source of truth, which keeps recall always current (no local copy to go stale).
-  The SessionStart hook separately injects the project's State from the repo
-  `.iroha/state.md` mirror; recall itself goes straight to Notion.
+- Recall reads decision/session *content* live from Notion (the single source of truth),
+  so it is always current. The repo's `.iroha/index.ndjson` is **not** a content mirror —
+  it holds keys only (id / topic / status / date / title) so recall can enumerate the
+  complete set and cover search's top-N and write-lag gaps; the actual text always comes
+  from `notion-fetch`. The SessionStart hook separately injects State from `.iroha/state.md`.

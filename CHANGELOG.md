@@ -29,9 +29,11 @@ All notable changes to iroha are documented here. The format loosely follows
 
 ### Changed
 
-- `recall` ranks hits by relevance + recency + importance and presents a small, edges-first
-  set; it abstains honestly ("no record for these terms") instead of fabricating, and scopes
-  every negative to the search terms (free-plan search is not a complete scan).
+- `recall` is now **hybrid + ranked**: it merges `notion-search` (content relevance) with
+  the complete local index (every row, instantly current), ranks by relevance + recency +
+  importance, leads with the load-bearing hit, and abstains honestly when neither has a
+  relevant entry. The index cross-check also surfaces decisions saved moments ago that
+  `notion-search` has not indexed yet (Notion search has write-lag).
 - `audit` enumeration is now **complete** via the index (duplicate-Active and orphan checks
   are exhaustive, not heuristic).
 - Failures are recorded as first-class, recallable entries (symptom → cause → fix) so a
