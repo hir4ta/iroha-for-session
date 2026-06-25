@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "iroha",
-  "version": "0.1.0",
-  "description": "Persist Claude Code sessions to Notion as living, queryable team memory: decisions (with rationale and rejected alternatives), dev rules, work-state, chat-style highlights, and per-project architecture profiles — so humans and future sessions can recall decisions, prior work, and how other projects are built.",
+  "version": "0.2.0",
+  "description": "Persist Claude Code sessions to Notion as living, queryable team memory: decisions (with rationale and rejected alternatives), dev rules, work-state, real-message chat highlights, per-session metrics, and per-project architecture profiles — plus period digests and a memory-health audit — so humans and future sessions can recall decisions, prior work, and how other projects are built.",
   "author": {
     "name": "Shunichi Hirata"
   },
@@ -18,6 +18,9 @@
     "decision-log",
     "recall",
     "architecture",
-    "cross-project"
+    "cross-project",
+    "digest",
+    "audit",
+    "metrics"
   ]
 }

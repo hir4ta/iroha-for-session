@@ -30,6 +30,10 @@ changed, and why.
   which works on the **free** Notion plan.
 - A SessionStart hook injects the project's **State** (from a small repo mirror) so
   Claude proactively tells you where you left off and what's unfinished.
+- Each saved session also carries a **metrics dashboard** (turns, tool calls, files,
+  duration) and a collapsed **full-chat audit trail**. `/iroha:digest` rolls a week or
+  month into one page; `/iroha:audit` keeps the growing memory clean (duplicate
+  decisions, State drift, stale items).
 
 ## Memory model — three layers + State
 
@@ -84,6 +88,8 @@ In Claude Code:
 | `/iroha:save-session` | Save this session: summary, decisions, rules changed, work-state, highlights, changed files. |
 | `/iroha:recall <query>` | Semantic search over Sessions + Decisions for past decisions and similar prior work. |
 | `/iroha:project` | Capture/update this project's architecture profile (manual). |
+| `/iroha:digest [week\|month\|range]` | Roll a period up into one digest: decisions, sessions, aggregate metrics, what's still open, and a timeline. |
+| `/iroha:audit [--fix]` | Health-check the memory (duplicate decisions, State drift, stale items); optionally apply safe, reversible fixes. |
 
 ## What iroha is **not**
 
@@ -91,8 +97,9 @@ In Claude Code:
   ids are cached locally.
 - **No relation properties.** Session↔Decision links use a URL property (a known
   relation-write bug in the Notion MCP); promotable to native relations once stable.
-- **No full transcript dump.** The chat is kept as curated, collapsible **highlights**,
-  not a verbatim copy.
+- **No verbatim transcript dump.** The curated **highlights** are the headline — their
+  *You* lines anchored to your real messages (never invented). A cleaned, per-turn-capped
+  **full-chat** audit trail sits collapsed underneath, with thinking and tool noise stripped.
 - **No save coercion.** Hooks remind, they don't block.
 
 ## Design
