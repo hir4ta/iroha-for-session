@@ -249,33 +249,60 @@ Build the `## Highlights` section as a curated subset, **anchored to the determi
 ```bash
 PROJ="$PWD"
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" get-state "$PROJ"
+MD="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" state-md-path "$PROJ")"
 ```
 
 State is the SessionStart hook's stable, human-readable anchor — keep it **slim** and
 **do not** re-transcribe decisions or rules (those live in the Decisions DB / CLAUDE.md;
-re-listing them here only duplicates the latest Session row). State body (monochrome):
-latest summary + date, a **Recent sessions** list (newest first, links to the last few
-Session pages), the carried-over **Unfinished / Next** list, and a link to the Decisions
-DB.
+re-listing them here only duplicates the latest Session row).
+
+**Single source — compose the State body ONCE, write that *identical* text to both the repo
+mirror and Notion.** The mirror (`<repo>/.iroha/state.md`, what the offline SessionStart hook
+injects) and the Notion State page (what humans open) are the **same artifact**; authoring it
+twice is what lets them drift. (A past save composed them separately and the Notion page ended
+up degraded — only a summary callout, with literal `\n`/`\t` escapes leaking in as `nt…n`,
+while the mirror was fine. The rule below makes that impossible.)
+
+**State body = plain Notion Markdown** (monochrome, no emoji, **no nested callouts** — plain
+`##` headings + `-` lists render cleanly in Notion *and* stay byte-identical to the mirror).
+These four sections, in order, **every save** (headings shown in English canonical — translate
+them to the user's conversation language):
+1. a one-line **summary + date** — `**Latest (YYYY-MM-DD):** <one sentence>`;
+2. `## Recent sessions` — the last few Session pages, newest first, as Markdown links:
+   `- [YYYY-MM-DD — <topic>](<session_url>)`;
+3. `## Unfinished / Next` — carried-over open items as a GFM checklist (`- [ ] …`);
+4. `## Decisions` — one link to the Decisions DB (canonical "why" lives there).
+
+Write **real newlines / tabs**, never the two-character sequences `\n` / `\t` (they leak into
+Notion as literal `nt`/`n`). Wrap any file/command/path in backticks so Notion does not
+auto-linkify `.sh`/`.md` names as URLs.
 
 **Triage the carry-over** every time (this keeps `Unfinished` from rotting into a
 graveyard): for each item carried from the prior State, decide done / still-active /
 stale-drop — keep only what is genuinely still pending, and mark anything carried for
-**2+ sessions** with a `[carried Nx]` tag (translated to the user's language) so the team
-notices stale work. State is fully replaced each save, so
-this triage cannot drift.
+**2+ sessions** with a `[carried Nx]` tag (translated to the user's language). State is
+fully replaced each save, so this triage cannot drift.
+
+**Write it — mirror first, then Notion verbatim from the mirror:**
+```bash
+mkdir -p "$(dirname "$MD")"
+cat > "$MD" <<'STATE'
+<the composed State body — real newlines, all four sections above>
+STATE
+```
+Then publish the **exact same text** (the file you just wrote) to Notion — same headings,
+same links, same lines; do not re-summarize or re-format it:
 - If get-state is empty: `notion-create-pages` under `container_page_id`
   (title `State — <project>`, icon `https://www.notion.so/icons/target_gray.svg`),
-  then `bash …/config.sh set-state "$PROJ" "<page_id>"`.
-- Else: `notion-update-page` `replace_content` on that page id.
-- **Also mirror the State body into the repo** so a teammate's SessionStart hook can
-  inject it offline (it lives at `<repo>/.iroha/state.md`, overwritten each save so it
-  never drifts):
-  `MD="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" state-md-path "$PWD")"; mkdir -p "$(dirname "$MD")"; printf '%s' "<state body>" > "$MD"`.
-  **Remind the user to commit `.iroha/state.md` and `.iroha/index.ndjson`** so the memory
-  and the enumeration index reach teammates. Notion is the single source of truth for the
-  decision/session *content* (recall reads it via `notion-search`); the repo holds only the
-  State mirror (for the offline hook) and the keys-only index (for complete enumeration).
+  `content` = the mirror's content; then `bash …/config.sh set-state "$PROJ" "<page_id>"`.
+- Else: `notion-update-page` `replace_content` on that page id, `content` = the mirror's
+  content.
+
+The mirror is the single source; Notion is its rendering — they must match. **Remind the user
+to commit `.iroha/state.md` and `.iroha/index.ndjson`** so the memory and the enumeration index
+reach teammates. Notion remains the single source of truth for decision/session *content*
+(recall reads it via `notion-search`); the repo holds only the State mirror (offline hook) and
+the keys-only index (complete enumeration).
 
 ## 9. Mark saved + report
 
