@@ -93,6 +93,9 @@ API token.
    bash "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
    bash "$L" set projects_db_id  "<PROJECTS_DATABASE_ID>"
    bash "$L" set projects_ds_id  "<PROJECTS_DATA_SOURCE_ID>"
+   bash "$L" set recall_enabled  true   # arm enforced JIT recall (the UserPromptSubmit hook
+                                        # stays idle until this is true — so a fresh install
+                                        # that never ran init costs nothing per prompt)
    ```
 
 8. **Create views for fast team browsing.** On the **Sessions** database (uses its
@@ -118,7 +121,10 @@ API token.
    prose a teammate reads should be localized).
 
 10. **Confirm** with links to both databases and tell the user they can now run
-    `/iroha:save-session`.
+    `/iroha:save-session`. Mention that **enforced just-in-time recall is now on**: each
+    substantive prompt triggers a bounded background recall of relevant past decisions
+    (disable any time with `IROHA_RECALL_DISABLE=1`; verify readiness with
+    `bash "${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.sh" --selfcheck`).
 
 ## Notes
 

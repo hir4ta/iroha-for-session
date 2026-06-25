@@ -176,6 +176,7 @@ RIBIN=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-bin.XXXXXX")
 RICACHE=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-cache.XXXXXX")
 IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set decisions_ds_id "DSID" >/dev/null
 IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set session_ds_id "SSID" >/dev/null
+IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set recall_enabled true >/dev/null
 # stub `timeout` (macOS lacks it): drop the duration arg, exec the rest
 printf '#!/usr/bin/env bash\nshift\nexec "$@"\n' >"$RIBIN/timeout"
 # stub `claude`: return a canned recall hit
@@ -205,7 +206,19 @@ RIDATA2=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data2.XXXXXX")
 eq ri-not-initialized "" "$(printf '{"prompt":"another substantive request here","session_id":"sid5","cwd":"/x"}' |
   env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA2" TMPDIR="$RICACHE" PATH="$RIBIN:$PATH" \
     bash "$HERE/../hooks/recall-inject.sh")"
-rm -rf "$RIDATA" "$RIDATA2" "$RIBIN" "$RICACHE"
+# config gate: initialized but recall_enabled not set -> no injection (distribution-safe default)
+RIDATA3=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data3.XXXXXX")
+IROHA_CONFIG_DIR="$RIDATA3" bash "$HERE/../scripts/_lib/config.sh" set decisions_ds_id "DSID" >/dev/null
+IROHA_CONFIG_DIR="$RIDATA3" bash "$HERE/../scripts/_lib/config.sh" set session_ds_id "SSID" >/dev/null
+eq ri-gate-recall-disabled "" "$(printf '{"prompt":"a substantive request with recall off","session_id":"sid6","cwd":"/x"}' |
+  env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA3" TMPDIR="$RICACHE" PATH="$RIBIN:$PATH" \
+    bash "$HERE/../hooks/recall-inject.sh")"
+# selfcheck (offline): all prerequisites stubbed/present -> READY, exit 0, guard asserted
+sc=$(env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA" PATH="$RIBIN:$PATH" \
+  bash "$HERE/../hooks/recall-inject.sh" --selfcheck)
+has ri-selfcheck-ready "READY" "$sc"
+has ri-selfcheck-guard "recursion guard short-circuits" "$sc"
+rm -rf "$RIDATA" "$RIDATA2" "$RIDATA3" "$RIBIN" "$RICACHE"
 
 echo "=== result: $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]

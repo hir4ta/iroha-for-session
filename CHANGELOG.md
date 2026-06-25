@@ -16,8 +16,12 @@ All notable changes to iroha are documented here. The format loosely follows
   spawns one bounded, read-only headless `claude -p` that searches the project's memory for
   decisions relevant to the prompt and injects the top hits. Fully fail-safe — recursion
   guard, prompt gate, per-prompt cache, hard timeout, and degrade-to-nothing on any failure
-  (no CLI / no `timeout` / not initialized / error). Disable with `IROHA_RECALL_DISABLE=1`;
-  tune with `IROHA_RECALL_TIMEOUT` (default 20s).
+  (no CLI / no `timeout` / not initialized / error). **Off by default** for distribution
+  safety — it stays idle until `/iroha:init` sets `recall_enabled` (so a fresh install pays
+  no per-prompt cost; consent is bound to actually setting iroha up). Force-disable any time
+  with `IROHA_RECALL_DISABLE=1`; tune with `IROHA_RECALL_TIMEOUT` (default 20s). Verify the
+  headless path with `recall-inject.sh --selfcheck` (offline) or `--selfcheck --live` (one
+  real claude + Notion MCP round-trip).
 - **Write-time dedup guard** in `save-session`: consults the index before creating a
   Decision, blocks granularity pollution at the source, and supersedes/merges near-dups.
 - Full chat is now stored as a **child page** of the Session (paged out, real and complete)
