@@ -17,7 +17,7 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
 
 - ランタイム = **pure bash** (`extract.sh` 等; `set -u`, `jq`)。mumei / iroha-for-agents と同じ流儀。
 - Notion への読み書きは **スキル内で Claude が Notion MCP ツールを呼ぶ**
-  (`notion-create-database` / `notion-create-pages` / `notion-update-page` / `notion-query-database-view`)。
+  (`notion-create-database` / `notion-create-pages` / `notion-update-page` / `notion-search`)。
 - 認証は **Notion MCP の OAuth のみ**。API トークンは持たない
   (配布ユーザーは Notion MCP を接続するだけで使える = 単一セットアップ)。
 - dev ツール = biome (JSON lint/format) + shellcheck + typos + gitleaks (pre-commit) + pure-bash selftest。
@@ -32,8 +32,8 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
 ## アーキテクチャ
 
 - 不変条件は `.claude/rules/architecture.md`。
-- 2 DB (Session / Decisions、relation は使わず **URL プロパティで連結**) + プロジェクト 1 枚の State ページ。
-- トリガーは手動 `/save-session`。リコール (SessionStart 注入 / view-query) は Phase 2。
+- 3 DB (Sessions / Decisions / **Projects**=技術スタック、relation は使わず **URL プロパティで連結**) + プロジェクト 1 枚の State ページ。
+- トリガーは手動 `/save-session` (記録) / `/iroha:recall` (notion-search で過去の決定・類似実装) / `/iroha:project` (スタック手動更新)。SessionStart hook は repo の `.iroha/state.md` を注入。
 
 ## ローカル検証
 

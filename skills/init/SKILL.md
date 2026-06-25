@@ -31,11 +31,11 @@ OAuth connection — there is no API token.
    else ask the user for the page URL where iroha should live. `notion-fetch` it to
    confirm access and get the bare page id (32-hex).
 
-4. **Reuse if present (team-join).** If the fetched page already contains `Sessions`
-   and `Decisions` databases, capture their data source ids (step 7) and stop — this
-   is how a teammate joins a shared workspace without creating duplicates.
+4. **Reuse if present (team-join).** If the fetched page already contains `Sessions`,
+   `Decisions`, and `Projects` databases, capture their data source ids (step 7) and
+   stop — this is how a teammate joins a shared workspace without creating duplicates.
 
-5. **Create the two databases** directly under that page with `notion-create-database`,
+5. **Create the three databases** directly under that page with `notion-create-database`,
    which takes **SQL DDL** (`CREATE TABLE`). Do NOT use `RELATION` columns (the MCP
    relation write path is buggy); link records with a `URL` column instead. Replace
    `iroha-for-notion` in the `Project` option with the current project name
@@ -56,6 +56,17 @@ OAuth connection — there is no API token.
    schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-notion':blue), "Status" SELECT('Active':green, 'Superseded':gray, 'Reverted':red), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Date" DATE)
    ```
 
+   Projects (one row per project — the cross-project architecture layer for catch-up
+   and "how do our other <language> projects do this?"):
+
+   ```
+   parent: {"type":"page_id","page_id":"<PAGE_ID>"}   title: "Projects"
+   schema: CREATE TABLE ("Name" TITLE, "Languages" MULTI_SELECT('TypeScript':blue, 'JavaScript':yellow, 'Go':blue, 'Python':green, 'Rust':orange, 'Bash':gray), "Frameworks" RICH_TEXT, "DevTools" RICH_TEXT, "CI" RICH_TEXT, "Repo" URL, "Updated" DATE)
+   ```
+   Only `Languages` is multi_select (finite, filterable); Frameworks / DevTools / CI are
+   rich_text (libraries are too many / too varied for select — let `notion-search` find
+   them in the text).
+
 6. **Read the data source ids from each result.** `notion-create-database` returns a
    `<data-source url="collection://<DS_ID>">` tag. Rows are created under the **data
    source id** (collection), NOT the database id — capture both.
@@ -69,6 +80,8 @@ OAuth connection — there is no API token.
    bash "$L" set session_ds_id   "<SESSIONS_DATA_SOURCE_ID>"
    bash "$L" set decisions_db_id "<DECISIONS_DATABASE_ID>"
    bash "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
+   bash "$L" set projects_db_id  "<PROJECTS_DATABASE_ID>"
+   bash "$L" set projects_ds_id  "<PROJECTS_DATA_SOURCE_ID>"
    ```
 
 8. **Create views for fast team browsing.** On the **Sessions** database (uses its

@@ -15,6 +15,10 @@
 - **データモデル**: Session DB + Decisions DB の 2 つ + プロジェクト 1 枚の State ページ。
   ID は config.json にキャッシュ。**決定/ルールの正本は Decisions DB / CLAUDE.md** に一本化し、
   State / Session ページに全文転記しない (重複防止)。
+- **3層メモリ**: Session=各回の出来事 / Decision=なぜ / **Projects (Architecture)=今の技術スタック**
+  (言語・lib・CI・mermaid 図、手動更新 `/iroha:project`)。Projects は 1 行=1 プロジェクトの共有 DB、
+  `Languages` のみ multi_select、横断検索 (同言語/同 lib の他プロジェクト) に使う。Architecture には
+  「なぜ」を書かず Decisions へリンク。
 - **リコールは `notion-search` 一本** (無料プランで動く。`query-database-view` /
   `query-data-sources` は有料なので使わない。オフライン grep ミラーは持たない＝単一の真実)。
   `/iroha:recall` は Sessions/Decisions を semantic 検索し、過去の決定・**類似実装**を引く

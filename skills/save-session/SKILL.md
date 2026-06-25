@@ -187,3 +187,5 @@ State was updated.
 - Do not write secrets to Notion; if the transcript surfaced any, omit them.
 - Highlights come from your memory of the session, not a transcript dump; the full
   chat is intentionally not stored (too large to append per session).
+- If the stack changed materially this session (new lockfile / framework / CI), suggest
+  the user run `/iroha:project` to refresh the project's architecture profile.
