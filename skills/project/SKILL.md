@@ -53,6 +53,14 @@ header `<callout>` summary, a stack `<table>`, a ```mermaid``` architecture diag
 the rationale, link to the Decisions DB; never re-explain decisions here. Icon
 `https://www.notion.so/icons/cube_gray.svg`.
 
+**Wrap every file name / command / path in backticks — including inside `<table>` cells,
+callouts, and the `CI` / `DevTools` / `Frameworks` properties** — so Notion does not
+auto-linkify `.sh` / `.md` / `.json` names into bogus `http://…` URLs (a real defect found
+while dogfooding: `selftest.sh` and `CLAUDE.md` rendered as `http://selftest.sh`). Reflect
+the **current** stack read in step 2, not a remembered snapshot — re-running this skill is
+how a stale field (e.g. a `CI` that now exists, a recall design that has since changed) gets
+corrected, since `Updated` and the body are fully replaced on each write.
+
 ## 5. Report
 
 The row URL, and note that cross-project recall (`/iroha:recall` over the Projects DB)
