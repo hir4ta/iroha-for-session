@@ -170,5 +170,42 @@ eq index-list-sessions "1" "$(iroha_index_list "$IDXROOT" session | grep -c '"ty
 eq index-valid-ndjson "ok" "$(iroha_index_list "$IDXROOT" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
 rm -rf "$IDXROOT"
 
+echo "=== recall-inject hook (enforced JIT recall: guards, gate, cache, degrade, inject) ==="
+RIDATA=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data.XXXXXX")
+RIBIN=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-bin.XXXXXX")
+RICACHE=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-cache.XXXXXX")
+IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set decisions_ds_id "DSID" >/dev/null
+IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set session_ds_id "SSID" >/dev/null
+# stub `timeout` (macOS lacks it): drop the duration arg, exec the rest
+printf '#!/usr/bin/env bash\nshift\nexec "$@"\n' >"$RIBIN/timeout"
+# stub `claude`: return a canned recall hit
+printf '#!/usr/bin/env bash\necho "- DecisionX: chose Y — because Z — 2026-06-25 — https://notion.example/x"\n' >"$RIBIN/claude"
+chmod +x "$RIBIN/timeout" "$RIBIN/claude"
+ri() {  # ri <prompt> <sid> [EXTRA_ENV=val ...]
+  local p="$1" s="$2"
+  shift 2
+  printf '{"prompt":"%s","session_id":"%s","cwd":"/x"}' "$p" "$s" |
+    env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA" TMPDIR="$RICACHE" \
+      PATH="$RIBIN:$PATH" "$@" bash "$HERE/../hooks/recall-inject.sh"
+}
+hp=$(ri "please add a login endpoint with validation" sid1)
+has ri-inject-shape "hookSpecificOutput" "$hp"
+has ri-inject-content "DecisionX" "$hp"
+eq ri-cache-second-empty "" "$(ri "please add a login endpoint with validation" sid1)"
+eq ri-gate-short "" "$(ri "hi there" sid2)"
+eq ri-gate-slash "" "$(ri "/iroha:recall some topic here" sid3)"
+eq ri-recursion-guard "" "$(ri "build a substantial new feature now" sidR IROHA_RECALL_CHILD=1)"
+eq ri-disable "" "$(ri "build a substantial new feature now" sidD IROHA_RECALL_DISABLE=1)"
+# abstention: stub returns NONE -> no injection
+printf '#!/usr/bin/env bash\necho NONE\n' >"$RIBIN/claude"
+chmod +x "$RIBIN/claude"
+eq ri-abstain-empty "" "$(ri "a distinct substantive request to recall" sid4)"
+# not initialized: empty config -> degrade (no injection)
+RIDATA2=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data2.XXXXXX")
+eq ri-not-initialized "" "$(printf '{"prompt":"another substantive request here","session_id":"sid5","cwd":"/x"}' |
+  env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA2" TMPDIR="$RICACHE" PATH="$RIBIN:$PATH" \
+    bash "$HERE/../hooks/recall-inject.sh")"
+rm -rf "$RIDATA" "$RIDATA2" "$RIBIN" "$RICACHE"
+
 echo "=== result: $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]

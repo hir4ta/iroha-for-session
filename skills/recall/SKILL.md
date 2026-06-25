@@ -33,6 +33,26 @@ Run `notion-search` once per database, passing the user's query (`$ARGUMENTS`) a
   `notion-fetch` a promising hit to read its summary, its `Decisions`, and the
   **Changed files** toggle, so you can point at the actual prior implementation.
 
+## 2b. Rank and trim — surface a few, most-relevant-first
+
+`notion-search` orders by semantic relevance only. Re-rank the hits before presenting,
+combining three signals (Generative Agents' recency + importance + relevance):
+- **relevance** — the search rank / how well the highlight matches the query;
+- **recency** — for equally relevant hits, a newer `Date` outranks an older one;
+- **importance** — `architecture` / `dependency` decisions outweigh `process`; an `Active`
+  decision outranks a `Superseded` one.
+
+Present **at most 3-5** hits, **most important first** — models read the start and end of a
+context window most reliably (Lost in the Middle), so lead with the load-bearing decision
+rather than burying it in a long flat list. **Drop weak / irrelevant hits** instead of
+padding the list: a low-confidence hit presented as fact is worse than a shorter, honest
+answer (Self-RAG / CRAG). For a completeness-critical "does a decision on X exist at all?"
+check, consult the local index — exhaustive where search is not:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh" find-topic "$PWD" "<topic>"
+```
+
 ## 3. Synthesize a reusable answer (in the user's language)
 
 - **Decision query**: the decision, *why*, the rejected alternatives, the date, and

@@ -7,6 +7,10 @@
 # nothing to say. stdout is reserved for the hook JSON; logs go to stderr.
 set -u
 
+# Recursion guard: the enforced JIT recall (recall-inject.sh) spawns a headless `claude`,
+# which fires SessionStart again — the child must no-op here or it would recurse.
+[ -n "${IROHA_RECALL_CHILD:-}" ] && exit 0
+
 input=$(cat)
 command -v jq >/dev/null 2>&1 || exit 0
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')

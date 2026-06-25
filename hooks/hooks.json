@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "description": "iroha-for-notion: inject the project's prior State and a save reminder at session start.",
+  "description": "iroha-for-notion: inject the project's prior State + a save reminder at session start, and enforced just-in-time recall of relevant past decisions on each prompt.",
   "hooks": {
     "SessionStart": [
       {
@@ -10,6 +10,17 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.sh\"",
+            "timeout": 30
           }
         ]
       }
