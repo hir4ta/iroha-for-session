@@ -23,16 +23,22 @@
   (言語・lib・CI・mermaid 図、手動更新 `/iroha:project`)。Projects は 1 行=1 プロジェクトの共有 DB、
   `Languages` のみ multi_select、横断検索 (同言語/同 lib の他プロジェクト) に使う。Architecture には
   「なぜ」を書かず Decisions へリンク。
-- **リコールは `notion-search` 主体＋keys-only ローカル index で補完** (無料プランで
-  `query-data-sources` が有料＝全件列挙不能なので、`.iroha/index.ndjson` に id/topic/status/date
-  のみを持ち dedup・abstention・audit を**完全列挙**で行う。本文は Notion 正本＝二重の真実にしない)。
-  `/iroha:recall` は Sessions/Decisions を semantic 検索し relevance+recency+importance で少数を
-  edges-first に返す (該当無しは検索語スコープで正直に abstain)。supersede は `トピック:` 前方一致＋
-  index で既存 Active を引く。
-- **repo ミラーは `.iroha/state.md`（State 全文）と `.iroha/index.ndjson`（keys-only 列挙）の 2 つ**
+- **リコールは2段 (Adaptive-RAG ルーティング)**。①常時の**安価ローカル前段**=
+  `scripts/_lib/search.sh` が `.iroha/index.ndjson` に対し pure-jq の **BM25**(CJK 2-gram
+  トークナイズ・status/type 重み)を回す。LLM もネットワークも要らず即時・オフライン・無料で、
+  UserPromptSubmit hook が毎プロンプト proactively に関連決定を注入する。②深い**semantic 後段**=
+  `/iroha:recall` が `notion-search`(無料で動く)で言い換えも拾い、`notion-fetch` で
+  Rationale/Alternatives/変更ファイルまで合成する。前段で足りる時は後段を起動しない(コスト/遅延ゼロ)。
+  この規模・専門語ドメインでは lexical ≈ dense (BEIR/小規模研究) なので前段が価値の大半を担う。
+  index 全件列挙(`query-data-sources` が有料＝列挙不能を補完)で dedup・abstention・audit を**完全**に行う。
+  `/iroha:recall` は relevance+recency+importance で少数を edges-first に返す (該当無しは正直に abstain)。
+  supersede は `トピック:` 前方一致＋index、加えて search.sh の近傍検索で別トピック名の重複も拾う。
+- **repo ミラーは `.iroha/state.md`（State 全文）と `.iroha/index.ndjson`（keys＋検索snippet）の 2 つ**
   （ともに commit し teammate は pull で共有）。SessionStart hook は Notion 非到達なので `state.md`
-  を注入。**決定の本文はローカルに持たない**（Notion 正本）が、無料プランの列挙不能を補う keys-only
-  index（id/topic/status/date のみ・本文なし）は持つ＝本文の二重化ではないのでドリフトしない。
+  を注入。**決定の本文はローカルに持たない**（Notion 正本）。index は id/topic/status/date に加え、
+  rationale/summary を ≤160 字に畳んだ**派生検索 snippet**(`text`)を持つ＝BM25 が決定の*理由*に当てる
+  ための検索キー。本文の正本は Notion で、snippet は save 毎に再生成される(embedding 同様の派生物)ので
+  二重の真実にならずドリフトしない。recall は full text を `notion-fetch` で正本から取る。
   config.json / saved マーカーは $HOME (マシン固有)。State の未完了は save 毎にトリアージ。
 - **命名と履歴**: Session = `YYYY-MM-DD — 主題`、Decision = `トピック: 選択` (理由は Rationale、
   却下案は Alternatives 欄)。決定を覆す時は旧行を **Status=Superseded** にし上書きしない (心変わりも
@@ -41,12 +47,15 @@
 - **冪等性**: `/init` は既存コンテナ/DB を検出したら再利用 (チーム参加 = 同じコマンド)。
   fallback = 複製可能 Notion テンプレート方式。
 - **シークレットを持たない**。Notion 認証は MCP OAuth で完結。userConfig / env トークンは無し。
-- **保存はリマインド・recall は enforced**。保存強制はしない (Stop の exit 2 ブロックは使わず
-  ユーザーを閉じ込めない)；保存忘れは SessionStart で注意喚起。一方 recall は **UserPromptSubmit の
-  enforced JIT 注入** (`recall-inject.sh` が bounded headless `claude -p` を発火・再帰ガード/timeout/
-  cache/degrade 完備、`claude` や `timeout` 不在・未接続では無害に degrade) で、各プロンプトに関連
-  決定を proactively 注入する。hook の注入テキスト（wrapper）は **配布コードなので英語**、本文の
-  State は会話言語（= ユーザーデータ）。未完了 `- [ ]` 件数のバナーも算出して添える。
+- **保存はリマインド・recall は proactive (ローカル)**。保存強制はしない (Stop の exit 2 ブロックは
+  使わずユーザーを閉じ込めない)；保存忘れは SessionStart で注意喚起。一方 recall は **UserPromptSubmit
+  のローカル注入** (`recall-inject.sh` が `search.sh` の BM25 を回し関連決定を proactively 注入)。
+  毎プロンプト headless `claude -p` を起動する旧設計は撤廃 (SOTA に無い反パターン＝コスト/遅延/レート
+  競合、`claude`/`timeout` 依存、非ユーザー turn での誤発火があった)。新設計は LLM もネットワークも呼ばず
+  即時・オフライン。fail-safe は維持: `IROHA_RECALL_DISABLE=1` で停止、`recall_enabled`(init で arm)未設定や
+  jq 不在やゲート該当(短文/slash/`<task-notification>` 等の擬似プロンプト)やマッチ無し(floor 未達)では
+  無害に無注入。hook の注入テキスト（wrapper）は **配布コードなので英語**、本文の State/決定は会話言語
+  （= ユーザーデータ）。未完了 `- [ ]` 件数のバナーも算出して添える。
   `source=compact`（`/compact`・auto-compact 後）は現在セッションのトランスクリプトから会話
   (prompts ＋ chat 直近) を再注入してスレッドを復元する（行単位 cap でマルチバイト非分割。Notion
   非到達の不変は維持＝ローカル transcript のみ読む）。

@@ -108,8 +108,16 @@ these terms* — retry with different terms before concluding it is absent.
 
 ## Notes
 
+- **Two-stage recall (Adaptive-RAG routing).** The `UserPromptSubmit` hook
+  (`recall-inject.sh`) runs a cheap, always-on **local BM25** pass over the index
+  (`search.sh`) on every substantive prompt — offline, no LLM, no Notion round-trip — and
+  proactively surfaces the top matching decisions as pointers. **This skill is the deep
+  second stage**: the user or Claude escalates to `/iroha:recall` when that cheap pointer is
+  not enough, and here we add Notion **semantic** search (catches paraphrase the local
+  lexical pass misses) plus full `Rationale` / `Alternatives` / changed-files synthesis.
 - Recall reads decision/session *content* live from Notion (the single source of truth),
   so it is always current. The repo's `.iroha/index.ndjson` is **not** a content mirror —
-  it holds keys only (id / topic / status / date / title) so recall can enumerate the
-  complete set and cover search's top-N and write-lag gaps; the actual text always comes
-  from `notion-fetch`. The SessionStart hook separately injects State from `.iroha/state.md`.
+  it holds keys + a short derived search snippet (id / topic / status / date / title / a
+  rationale condensation) so recall can enumerate the complete set, cover search's top-N and
+  write-lag gaps, and power the local BM25 stage; the full text always comes from
+  `notion-fetch`. The SessionStart hook separately injects State from `.iroha/state.md`.

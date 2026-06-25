@@ -188,7 +188,13 @@ decision's `{topic, status, id}` exhaustively:
 ```bash
 ROOT="$PWD"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
 bash "$IDX" find-topic "$ROOT" "<topic>"   # every existing row on this topic (any status)
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.sh" "$ROOT" "<this decision's topic + choice>" decision 5
 ```
+
+The second line is a **near-duplicate check beyond the exact topic prefix** (mem0-style
+consolidation): the local BM25 search surfaces a decision that means the same thing under a
+*different* topic string, which `find-topic` would miss. If it returns a clearly-equivalent
+`Active` row, supersede/merge instead of adding a parallel one.
 
 - If an `Active` row with the same `<topic>` already exists and is **unchanged**, do **not**
   insert a duplicate.
@@ -200,18 +206,26 @@ bash "$IDX" find-topic "$ROOT" "<topic>"   # every existing row on this topic (a
   a Decisions row — keep it in the Session's Decisions table. This is the guard that keeps
   rows like `Changed files: bulleted` out of the canonical DB.
 
-**Update the index after every Notion write** (this is what makes the next dedup complete):
+**Update the index after every Notion write** (this is what makes the next dedup complete
+AND what makes proactive recall work). The 9th arg is a **search snippet** — a one-line
+condensation of the decision's `Rationale` (≤160 chars, newlines collapsed to spaces):
 
 ```bash
 # after creating a Decision (capture its page id from notion-create-pages):
-bash "$IDX" upsert "$ROOT" decision "<decision_page_id>" "<topic>" Active "<YYYY-MM-DD>" "<Name>" "<Project>"
-# after superseding an old one:
-bash "$IDX" upsert "$ROOT" decision "<old_page_id>" "<topic>" Superseded "<old_date>" "<old_Name>" "<Project>"
+bash "$IDX" upsert "$ROOT" decision "<decision_page_id>" "<topic>" Active "<YYYY-MM-DD>" "<Name>" "<Project>" "<rationale snippet ≤160 chars>"
+# after superseding an old one (keep its snippet so it stays searchable as history):
+bash "$IDX" upsert "$ROOT" decision "<old_page_id>" "<topic>" Superseded "<old_date>" "<old_Name>" "<Project>" "<old rationale snippet>"
 ```
 
-The index holds **keys only** (topic / status / id — no rationale or content); Notion stays
-the single source of truth for each decision's text. The index exists solely so dedup,
-supersede, and audit can see the **complete** set that free-plan search cannot enumerate.
+The index holds **keys + a derived search snippet** (topic / status / id / a short rationale
+condensation) — NOT the canonical content: Notion stays the single source of truth, and recall
+fetches the full `Rationale` / `Alternatives` from there. The snippet is regenerated on every
+save (like an embedding would be), so it cannot drift into a second truth. It exists so (a)
+dedup / supersede / audit can enumerate the **complete** set free-plan search cannot, and (b)
+the local BM25 recall (`search.sh`, the cheap always-on first stage in the UserPromptSubmit
+hook) can match a prompt against the *reason* a decision was made — not just its title (matching
+the title alone misses "do we need an API token?" → "Notion: MCP only", whose reason is the
+token, not the title).
 
 ## 7. Chat highlights — curated, anchored to real messages
 
@@ -268,9 +282,10 @@ this triage cannot drift.
 ```bash
 SAVED="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" saved-dir)"
 mkdir -p "$SAVED" && : > "$SAVED/${CLAUDE_SESSION_ID}"
-# index the Session row too, so audit/recall can enumerate sessions completely:
+# index the Session row too, so audit/recall can enumerate sessions completely and the local
+# BM25 recall can surface "we built something like this before" (9th arg = the Summary snippet):
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh" upsert "$PWD" session \
-  "<session_page_id>" "" "<Status>" "<YYYY-MM-DD>" "<Name>" "<Project>"
+  "<session_page_id>" "" "<Status>" "<YYYY-MM-DD>" "<Name>" "<Project>" "<Summary snippet ≤160 chars>"
 ```
 
 Report the Session page URL, how many decisions were recorded, and that the Project

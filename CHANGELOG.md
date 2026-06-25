@@ -12,18 +12,35 @@ All notable changes to iroha are documented here. The format loosely follows
   session. On the Notion free plan `query-data-sources` is paid, so the DBs cannot be
   enumerated; this index lets dedup, supersede, and audit reason over the *complete* set
   instead of `notion-search`'s top-N. Notion stays the single source of truth for content.
-- **Enforced just-in-time recall** (`hooks/recall-inject.sh`, a `UserPromptSubmit` hook):
-  spawns one bounded, read-only headless `claude -p` that searches the project's memory for
-  decisions relevant to the prompt and injects the top hits. Fully fail-safe — recursion
-  guard, prompt gate, per-prompt cache, hard timeout, and degrade-to-nothing on any failure
-  (no CLI / no `timeout` / not initialized / error). **Off by default** for distribution
-  safety — it stays idle until `/iroha:init` sets `recall_enabled` (so a fresh install pays
-  no per-prompt cost; consent is bound to actually setting iroha up). Force-disable any time
-  with `IROHA_RECALL_DISABLE=1`; tune with `IROHA_RECALL_TIMEOUT` (default 20s). Verify the
-  headless path with `recall-inject.sh --selfcheck` (offline) or `--selfcheck --live` (one
-  real claude + Notion MCP round-trip).
-- **Write-time dedup guard** in `save-session`: consults the index before creating a
-  Decision, blocks granularity pollution at the source, and supersedes/merges near-dups.
+- **Proactive local recall** (`hooks/recall-inject.sh`, a `UserPromptSubmit` hook +
+  `scripts/_lib/search.sh`): on every substantive prompt, a *cheap, always-on* pure-`jq`
+  **BM25** search over the keys-only index surfaces the most relevant past decisions — **no
+  LLM, no network, offline, instant**. Deep semantic recall stays in the explicit
+  `/iroha:recall` (Adaptive-RAG two-stage routing: cheap local first, escalate only when
+  needed). The search tokenizer is **CJK-aware** (Japanese runs are split into 2-grams, so
+  lexical matching works on non-space-delimited text) and weights decisions over sessions /
+  Active over Superseded. Fully fail-safe — opt-out (`IROHA_RECALL_DISABLE=1`), consent gate
+  (`recall_enabled`, armed by `/iroha:init`, off by default so a fresh install costs nothing),
+  prompt gate (short / slash / system pseudo-prompts), per-prompt cache, and abstain-to-nothing
+  below the relevance floor (`IROHA_RECALL_MINSCORE`, default 1.2). Verify with
+  `recall-inject.sh --selfcheck`.
+  - *Replaces* the earlier (unreleased) per-prompt headless `claude -p` recall — an
+    anti-pattern (no SOTA agent-memory system runs a generative LLM per query): it cost
+    latency + tokens + rate contention on every prompt, depended on `claude` + a `timeout`
+    binary (macOS coreutils), and was observed firing on non-user turns. The local stage
+    removes all of that.
+- **Index search snippet**: the local index now carries a short, derived `text` field
+  (rationale / summary condensed to ≤160 chars) so BM25 can match a prompt against the *reason*
+  a decision was made, not just its title. It is regenerated on every save (like an embedding),
+  so Notion stays the single source of truth and it cannot drift.
+- **Recall quality eval harness** (`tests/recall-eval.sh`, `npm run test:recall`, in CI): a
+  golden set of realistic prompts → expected decision, scoring **Recall@k / MRR / abstention**
+  on the real index — so "does the memory get more useful as it grows?" is a measured curve and
+  recall regressions are caught (currently Recall@3 = 100%, MRR = 0.94, abstention = 100%).
+- **Write-time dedup guard** in `save-session`: consults the index before creating a Decision,
+  blocks granularity pollution at the source, and supersedes/merges near-dups — now also via a
+  local BM25 near-duplicate check that catches an equivalent decision under a *different* topic
+  string (mem0-style consolidation), which exact topic-prefix matching misses.
 - Full chat is now stored as a **child page** of the Session (paged out, real and complete)
   — never an inline placeholder.
 

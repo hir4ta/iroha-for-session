@@ -26,8 +26,14 @@ changed, and why.
   transcript. The **intelligence** (summary, decisions, classification, chat highlights)
   is produced by Claude inside the skills.
 - All Notion reads/writes go through the **Notion MCP** — there is **no API token**.
-  Auth is the MCP's OAuth, so setup is a single connection. Recall uses `notion-search`,
-  which works on the **free** Notion plan.
+  Auth is the MCP's OAuth, so setup is a single connection. Works on the **free** Notion plan.
+- **Recall is two-stage.** On every prompt, a `UserPromptSubmit` hook runs a *cheap, local*
+  BM25 search (pure `jq`, CJK-aware, **no LLM and no network**) over a tiny on-disk index and
+  proactively surfaces the most relevant past decisions — so Claude consults them *before*
+  rebuilding, at zero per-prompt latency or token cost. When that pointer isn't enough,
+  `/iroha:recall` escalates to Notion **semantic** search (`notion-search`, free plan) for the
+  full rationale and rejected alternatives. (At this corpus scale lexical ≈ dense, so the cheap
+  stage carries most of the weight; the semantic stage catches the paraphrases it misses.)
 - A SessionStart hook injects the project's **State** (from a small repo mirror) so
   Claude proactively tells you where you left off and what's unfinished. After `/compact`
   or auto-compact it also **re-injects the current session's own thread** (your prompts +
