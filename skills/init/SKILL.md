@@ -94,6 +94,9 @@ OAuth connection — there is no API token.
    On the **Decisions** database:
    - `notion-create-view` type `table` named **`Active`**, `FILTER "Status" = 'Active'`
      so superseded / reverted decisions do not clutter "what did we decide?".
+   On the **Projects** database:
+   - `notion-create-view` type `board` named **`By Language`**, `GROUP BY "Languages"
+     SORT BY "Updated" DESC` so a teammate can browse "all our Go / Python projects".
 
 9. **Add an entry-point guide to the parent page.** `notion-update-page`
    `insert_content` at `{"type":"start"}` a one-line `<callout color="gray_bg">`: how to
