@@ -29,3 +29,6 @@ jobs:
 
       - name: Recall quality eval
         run: npm run test:recall
+
+      - name: Recall scale check
+        run: npm run test:scale
