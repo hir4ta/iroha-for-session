@@ -11,7 +11,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "test:bash": "bash tests/selftest.sh",
-    "test": "bash tests/selftest.sh"
+    "test:recall": "bash tests/recall-eval.sh",
+    "test": "bash tests/selftest.sh && bash tests/recall-eval.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16"

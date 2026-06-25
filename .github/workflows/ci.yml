@@ -26,3 +26,6 @@ jobs:
 
       - name: Behavioral selftest
         run: npm run test:bash
+
+      - name: Recall quality eval
+        run: npm run test:recall
