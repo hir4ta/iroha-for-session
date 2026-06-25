@@ -7,11 +7,11 @@
     {
       "name": "iroha",
       "source": "./",
-      "description": "Persist Claude Code sessions to Notion as a living, queryable project memory: decisions (with rationale and rejected alternatives), dev rules, work-state, and a cleaned chat log.",
+      "description": "Persist Claude Code sessions to Notion as living, queryable team memory: decisions (with rationale and rejected alternatives), dev rules, work-state, chat-style highlights, and per-project architecture profiles.",
       "homepage": "https://github.com/hir4ta/iroha-for-notion",
       "repository": "https://github.com/hir4ta/iroha-for-notion",
       "license": "MIT",
-      "keywords": ["notion", "memory", "session", "knowledge-base", "decision-log", "recall"]
+      "keywords": ["notion", "memory", "session", "knowledge-base", "decision-log", "recall", "architecture", "cross-project"]
     }
   ]
 }
