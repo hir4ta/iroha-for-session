@@ -76,7 +76,8 @@ Property map uses SQLite values:
   `[設計/実装] …` (Type duplicated).
 - `Project`, `Status`, `Branch`, `Author`, `Summary` — plain strings.
 - `Type` — a JSON array **string**, e.g. `"[\"設計\", \"実装\"]"`.
-- Date — expanded keys: `"date:Date:start"` = started ISO, `"date:Date:is_datetime"` = 1.
+- Date — expanded keys: `"date:Date:start"` = started ISO, `"date:Date:is_datetime"` = `1`
+  **as a JSON number, not the string `"1"`** (a string is rejected with a 400).
 
 **`content` = Notion-flavored Markdown, visual and monochrome (no emoji icons).**
 Render **all headings and labels in the user's conversation language, defaulting to
@@ -111,6 +112,11 @@ Set a clean monochrome page icon:
 `icon: "https://www.notion.so/icons/notebook_gray.svg"`.
 
 ## 6. Create the Decision rows
+
+**What earns a Decision row.** Only **architecture / dependency / process** choices that
+shape the project belong in the Decisions DB. Keep display / naming / wording tweaks in
+the Session's Decisions table — do **not** promote them, so recall's signal-to-noise stays
+high. A decision to NOT do something still counts.
 
 For each decision, `notion-create-pages` under `decisions_ds_id`. `Name` = a short
 **`<topic>: <choice>`** title (≤24 chars, no parenthetical) — e.g. `Notion 連携: MCP 一本`,

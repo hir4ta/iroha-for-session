@@ -43,6 +43,11 @@ Run `notion-search` once per database, passing the user's query (`$ARGUMENTS`) a
   here's the reference and what to reuse." This is what makes iroha pay off more the
   more the team uses it.
 - De-duplicate near-identical hits; report the current decision, not superseded copies.
+- **Stale Session summaries.** A Session's `Summary` is a snapshot from its date and may
+  describe a since-changed state (an old session may say "2 DB" when the project now has
+  3). Sessions are immutable history (no supersede), so treat the **newest Session, the
+  State page, and `Active` Decisions** as current — never echo a stale Session summary as
+  today's fact.
 
 ## Notes
 
