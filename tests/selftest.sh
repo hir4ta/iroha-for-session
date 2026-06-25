@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # iroha-for-notion selftest — behavioral oracle for deterministic extraction.
-# Runs scripts/extract.sh against a synthetic transcript fixture and asserts the
-# cleaned views include the right content and exclude noise.
+# Runs scripts/extract.sh against a synthetic transcript fixture and asserts the views
+# save-session depends on (files / commands / meta) are correct — including tolerance of
+# truncated / malformed transcript lines. Also covers config and the SessionStart hook.
 # Run: bash tests/selftest.sh; echo $?   (0 = ALL PASS)
 set -u
 
@@ -42,15 +43,11 @@ eq() {
   fi
 }
 
-echo "=== extract chat (human + assistant text only) ==="
-chat=$(bash "$EXTRACT" chat "$FIX")
-has chat-human "Please add a login endpoint" "$chat"
-has chat-assistant "Sure, I'll add it." "$chat"
-has chat-final "Done, the endpoint is added." "$chat"
-hasnt chat-no-thinking "SECRET THOUGHTS" "$chat"
-hasnt chat-no-toolresult "FILE WRITTEN noise" "$chat"
-hasnt chat-no-sidechain "SIDECHAIN" "$chat"
-hasnt chat-no-notification "NOISE-TASKNOTIF" "$chat"
+echo "=== extract meta (the view save-session depends on) ==="
+meta=$(bash "$EXTRACT" meta "$FIX")
+eq meta-valid-json "ok" "$(printf '%s' "$meta" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
+has meta-title "Add login endpoint" "$meta"
+has meta-sessionid "sessionId" "$meta"
 
 echo "=== extract files (deduped) ==="
 files=$(bash "$EXTRACT" files "$FIX")
@@ -62,23 +59,20 @@ cmds=$(bash "$EXTRACT" commands "$FIX")
 has cmd-bash "npm test" "$cmds"
 hasnt cmd-firstline-only "echo done" "$cmds"
 
-echo "=== extract title (ai-title wins) ==="
-title=$(bash "$EXTRACT" title "$FIX")
-eq title-aititle "Add login endpoint" "$title"
+echo "=== extract tolerates truncated / malformed lines ==="
+BROKEN=$(mktemp "${TMPDIR:-/tmp}/iroha-broken.XXXXXX")
+cat "$FIX" >"$BROKEN"
+printf 'GARBAGE-NOT-JSON\n{"type":"assistant","truncated-no-close\n' >>"$BROKEN"
+bfiles=$(bash "$EXTRACT" files "$BROKEN")
+bec=$?
+eq broken-files-exit0 "0" "$bec"
+has broken-files-survives "src/login.ts" "$bfiles"
+bmeta=$(bash "$EXTRACT" meta "$BROKEN")
+eq broken-meta-valid-json "ok" "$(printf '%s' "$bmeta" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
+has broken-meta-title "Add login endpoint" "$bmeta"
+rm -f "$BROKEN"
 
-echo "=== extract chat-callouts (Notion bubbles) ==="
-cc=$(bash "$EXTRACT" chat-callouts "$FIX")
-has cc-callout-open "<callout color=\"blue_bg\">" "$cc"
-has cc-you-label "**You**" "$cc"
-has cc-claude-label "**Claude**" "$cc"
-hasnt cc-no-notification "NOISE-TASKNOTIF" "$cc"
-ct=$(bash "$EXTRACT" chat-toggle "$FIX")
-has ct-details "<details>" "$ct"
-has ct-summary-default "<summary>Conversation</summary>" "$ct"
-has ct-callout-inside "<callout color=" "$ct"
-has ct-label-override "<summary>会話ログ</summary>" "$(bash "$EXTRACT" chat-toggle "$FIX" "会話ログ")"
-
-echo "=== config helper (roundtrip, isolated dir) ==="
+echo "=== config helper (roundtrip, self-heal, isolated dir) ==="
 IROHA_CONFIG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfg.XXXXXX")"
 export IROHA_CONFIG_DIR
 # shellcheck disable=SC1091 # dynamic source path; the file exists at runtime
@@ -89,6 +83,11 @@ eq config-missing-empty "" "$(iroha_config_get nonexistent_key)"
 iroha_config_set_state_page "/repo/foo" "PAGE9"
 eq config-state-roundtrip "PAGE9" "$(iroha_config_get_state_page "/repo/foo")"
 eq config-state-missing "" "$(iroha_config_get_state_page "/repo/bar")"
+# a corrupt config.json self-heals instead of locking up every get/set
+printf 'GARBAGE' >"$IROHA_CONFIG_DIR/config.json"
+eq config-self-heal-get "" "$(iroha_config_get session_db_id)"
+iroha_config_set session_db_id "DB2"
+eq config-self-heal-set "DB2" "$(iroha_config_get session_db_id)"
 rm -rf "$IROHA_CONFIG_DIR"
 
 echo "=== session-start hook (state injection + save reminder) ==="
@@ -112,8 +111,10 @@ mkdir -p "$HOOKDATA/saved" && : >"$HOOKDATA/saved/old"
 hasnt hook-no-remind-when-saved "未保存" "$(run_hook)"
 rm -f "$PROJ/.iroha/state.md" "$HOOKHOME/.claude/projects/$HASH/old.jsonl"
 eq hook-silent-when-empty "" "$(run_hook)"
+# missing CLAUDE_PLUGIN_ROOT must exit 0 silently, not crash under set -u
+env -u CLAUDE_PLUGIN_ROOT HOME="$HOOKHOME" bash "$HERE/../hooks/session-start.sh" <<<'{"cwd":"/x","session_id":"y"}' >/dev/null 2>&1
+eq hook-no-plugin-root-exit0 "0" "$?"
 rm -rf "$HOOKHOME" "$HOOKDATA" "$PROJ"
-
 
 echo "=== result: $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]
