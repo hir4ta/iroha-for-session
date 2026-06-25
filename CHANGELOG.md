@@ -36,13 +36,25 @@ All notable changes to iroha are documented here. The format loosely follows
 - **Recall quality eval harness** (`tests/recall-eval.sh`, `npm run test:recall`, in CI): a
   golden set of realistic prompts → expected decision, scoring **Recall@k / MRR / abstention**
   on the real index — so "does the memory get more useful as it grows?" is a measured curve and
-  recall regressions are caught (currently Recall@3 = 100%, MRR = 0.94, abstention = 100%).
+  recall regressions are caught (at the time of writing Recall@3 = 100%, MRR = 0.854,
+  abstention = 100% — a snapshot of the live `recall-eval` value, not a fixed guarantee).
 - **Write-time dedup guard** in `save-session`: consults the index before creating a Decision,
   blocks granularity pollution at the source, and supersedes/merges near-dups — now also via a
   local BM25 near-duplicate check that catches an equivalent decision under a *different* topic
   string (mem0-style consolidation), which exact topic-prefix matching misses.
 - Full chat is now stored as a **child page** of the Session (paged out, real and complete)
   — never an inline placeholder.
+- **Recall scale oracle** (`tests/recall-scale.sh`, `npm run test:scale`, in CI): proves the
+  local BM25 ranking, complete enumeration, abstention, and sub-timeout latency still hold at
+  ~320 rows ("hundreds of sessions"), so "does recall hold up as the memory grows?" is a
+  measured property rather than a hope.
+- **State pre-publish validator** (`scripts/_lib/state-lint.sh`): lints the State mirror —
+  byte-identical to the Notion page under the single-source rule — for literal `\n`/`\t` escape
+  leaks, dropped sections, and a missing summary *before* publishing. Wired into `save-session`
+  (publish only when clean), `audit` (deterministic State-corruption check), and `selftest`
+  (asserts the real committed mirror), turning the recurring State-corruption class from "detect
+  after the fact" into "prevent before write". Checks are language-independent (structure only),
+  so a State written in any conversation language passes.
 
 ### Changed
 
@@ -58,7 +70,21 @@ All notable changes to iroha are documented here. The format loosely follows
 - **Language boundary tightened**: all distribution code/templates are English; `init`
   localizes the materialized `Type` option labels and the entry-point guide to the user's
   conversation language, while structural keys (property names, `Status`, `Project`,
-  `Languages`) stay English.
+  `Languages`) stay English. Session/State **`##` section headings are likewise English
+  canonical** (structural — `audit` / `state-lint` enumerate them by name); only body prose is
+  localized.
+- `save-session` now writes State as a **single source**: the body is composed once, written to
+  the repo mirror, and the *identical* text is published to Notion, killing the drift that once
+  left the Notion page a summary-only callout with literal `\n`/`\t` escapes while the mirror was
+  fine.
+- `audit` gains **deterministic State-corruption detection** (via `state-lint`) plus a
+  **Projects-profile drift** check (stale `Updated`, a `CI`/stack field contradicting the repo,
+  or file names auto-linkified into bogus URLs).
+- `extract.sh` excludes **harness meta turns** (`isMeta` — e.g. the "Your tool call was
+  malformed … retry." injection) from `prompts` / `chat` / `stats`, so the You-anchor and the
+  turn counts reflect only real human messages.
+- `project` enforces **backticking every file name / path** so Notion does not auto-linkify
+  `.sh` / `.md` / `.json` names into bogus `http://…` URLs.
 
 ### Fixed
 

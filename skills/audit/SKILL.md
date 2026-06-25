@@ -76,6 +76,14 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   auto-linkified into a bogus `http://…sh` / `http://…md` URL (it should be backticked). The
   cross-project layer is **manually updated**, so it rots silently. Fix = re-run
   `/iroha:project`. (low.)
+- **H. Repo-doc drift** — everything above audits Notion + the State mirror, but the repo's own
+  committed docs can carry stale claims that readers (and recall) trust. Grep `CHANGELOG.md`,
+  `README.md`, and `.claude/rules/architecture.md` for **hardcoded metrics or claims that no
+  longer hold**: a cited recall metric (`Recall@k` / `MRR` / abstention) that differs from the
+  current `bash tests/recall-eval.sh` output; a DB/architecture count contradicting the 3-DB
+  model; a feature described as present/absent that the code disproves. (medium — a doc that lies
+  erodes the same trust a rotted decision does; this is exactly how a stale `MRR = 0.94` survived
+  in `CHANGELOG.md` after the memory itself had been corrected.)
 
 ## 3. Report (always)
 
@@ -102,6 +110,9 @@ report), apply **only the safe, reversible** fixes and re-report each:
   the user's call.
 - **G (Projects drift)** — re-run `/iroha:project` to rewrite the row from the current repo
   (it fully replaces the body + `Updated`). Reversible; safe to apply on confirmation.
+- **H (repo-doc drift)** — propose the corrected line citing the current measured value, and
+  apply on confirmation; for a live metric, prefer phrasing it as a **dated snapshot** so it
+  does not re-rot.
 - **C / E / F** — these need human judgment (delete? rewrite? demote?). Report them with a
   recommended action but **do not** auto-apply; ask.
 

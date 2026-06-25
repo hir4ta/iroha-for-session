@@ -97,13 +97,15 @@ Property map uses SQLite values:
   **as a JSON number, not the string `"1"`** (a string is rejected with a 400).
 
 **`content` = Notion-flavored Markdown, visual and monochrome (no emoji icons).**
-Render **all headings and labels in the user's conversation language, defaulting to
-English** when unsure. Read the spec once via `notion://docs/enhanced-markdown-spec`.
+Keep the **section headings in English canonical** (`## Metrics`, `## Decisions`, … — they
+are structural, like property names, and `audit` / `state-lint` enumerate them by name);
+render the **body prose** (summary, table cells, callout text, toggle labels) in the user's
+conversation language. Read the spec once via `notion://docs/enhanced-markdown-spec`.
 Emit **exactly these sections, in this order, on every save** — the structure must be
 identical each time. The **only** optional sections are **Architecture**, **Rules
 changed**, and **Failures** (include them only when they apply); never add, drop,
-rename, or reorder anything else (English canonical names shown — translate them to the
-user's language). Do **not** add an Overview / meta table — the page properties already
+rename, or reorder anything else (the section headings below are English canonical — keep
+them verbatim; localize only the body prose). Do **not** add an Overview / meta table — the page properties already
 show Project / Status / Type / Date / Branch / Author at the top:
 1. a header `<callout color="blue_bg">` with the one-line summary;
 2. `## Metrics` — a `<callout color="gray_bg">` dashboard built **verbatim from
@@ -118,8 +120,8 @@ show Project / Status / Type / Date / Branch / Author at the top:
 6. `## Highlights` — 5-8 pivotal exchanges as alternating chat-style callouts
    (You = `blue_bg`, Claude = `gray_bg`), **wrapped in a `<details>` toggle so they are
    collapsed by default and expand on click** (the section is long — keep the page
-   scannable). Give the `<summary>` a label in the user's language (English canonical e.g.
-   `Highlights (N exchanges)`), and **tab-indent the callouts inside the toggle**. The
+   scannable). Give the `<summary>` the English canonical label `Highlights (N exchanges)`,
+   and **tab-indent the callouts inside the toggle**. The
    **You** lines come from the `prompts` extract (real messages, never invented), Claude
    lines are paraphrased — **not** the full chat (see step 7);
 7. `## Rules changed` *(optional — only when this session established or changed a rule)*
@@ -265,8 +267,9 @@ while the mirror was fine. The rule below makes that impossible.)
 
 **State body = plain Notion Markdown** (monochrome, no emoji, **no nested callouts** — plain
 `##` headings + `-` lists render cleanly in Notion *and* stay byte-identical to the mirror).
-These four sections, in order, **every save** (headings shown in English canonical — translate
-them to the user's conversation language):
+These four sections, in order, **every save** (the `##` section headings stay **English
+canonical** — they are structural and `state-lint` / `audit` rely on them; the body lines are
+in the user's conversation language):
 1. a one-line **summary + date** — `**Latest (YYYY-MM-DD):** <one sentence>`;
 2. `## Recent sessions` — the last few Session pages, newest first, as Markdown links:
    `- [YYYY-MM-DD — <topic>](<session_url>)`;
