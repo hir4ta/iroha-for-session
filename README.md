@@ -1,0 +1,104 @@
+# iroha for Notion
+
+> Persist Claude Code sessions to Notion as a living, queryable **team memory** —
+> decisions (with rationale and rejected alternatives), work-state, chat-style
+> highlights, and per-project architecture profiles. So humans *and* future Claude
+> sessions can recall what was decided, why, what's unfinished, and how things are built.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/hir4ta/iroha-for-notion/actions/workflows/ci.yml/badge.svg)](https://github.com/hir4ta/iroha-for-notion/actions/workflows/ci.yml)
+
+## Why
+
+Claude Code's built-in memory is thin and lives on one machine. iroha turns each coding
+session into structured, searchable memory in Notion, so that the next session — yours
+or a teammate's — opens already knowing the project's decisions, its unfinished work,
+and how it is built. The more the team uses it, the more it grows: ask *"have we built
+something like this before?"* and iroha points at the prior session, the files it
+changed, and why.
+
+## How it works
+
+- The **runtime is pure bash** (`scripts/extract.sh`, `set -u` + `jq`): it does the
+  deterministic extraction (changed files, commands, metadata) from the session
+  transcript. The **intelligence** (summary, decisions, classification, chat highlights)
+  is produced by Claude inside the skills.
+- All Notion reads/writes go through the **Notion MCP** — there is **no API token**.
+  Auth is the MCP's OAuth, so setup is a single connection. Recall uses `notion-search`,
+  which works on the **free** Notion plan.
+- A SessionStart hook injects the project's **State** (from a small repo mirror) so
+  Claude proactively tells you where you left off and what's unfinished.
+
+## Memory model — three layers + State
+
+```mermaid
+graph TD
+  CC["Claude Code session"] -->|/iroha:save-session| SK["save-session skill"]
+  SK -->|deterministic| EX["extract.sh (bash)"]
+  SK -->|intelligence| CL["Claude"]
+  SK -->|Notion MCP / OAuth| N[("Notion")]
+  N --> SES["Sessions — what happened"]
+  N --> DEC["Decisions — why"]
+  N --> PRJ["Projects — current stack"]
+  N --> ST["State — where we are"]
+  ST -->|repo .iroha/state.md| HK["SessionStart hook"]
+  DEC -->|notion-search| RC["/iroha:recall"]
+```
+
+- **Sessions** — what happened each session: summary, decisions made, chat highlights, changed files.
+- **Decisions** — *why* the project is the way it is: rationale + rejected alternatives, with supersession history (a change of mind is itself memory).
+- **Projects** — *what the project is now*: languages, key libraries, dev tooling, CI, an architecture diagram — for onboarding and cross-project search.
+- **State page** — the always-current "where are we / what's unfinished", injected at session start.
+
+## Requirements
+
+- [Claude Code](https://code.claude.com/docs)
+- A Notion account with the **hosted Notion MCP** connected (OAuth). Works on the **free** plan.
+
+## Install
+
+In Claude Code:
+
+```
+/plugin marketplace add hir4ta/iroha-for-notion
+/plugin install iroha@iroha-for-notion
+```
+
+## Getting started
+
+1. **Connect Notion MCP** — run `/mcp`, pick `notion`, and complete the OAuth in your browser.
+2. **`/iroha:init`** — creates the `Sessions` / `Decisions` / `Projects` databases (plus
+   Recent / Active / By-Language views) under a Notion page you choose. Re-running it on a
+   shared page lets a teammate **join** the same workspace.
+3. **`/iroha:save-session`** — save the current session.
+4. **`/iroha:recall <query>`** — *"did we decide against X? why?"* / *"have we built this before?"*.
+5. **`/iroha:project`** — record (or refresh) the project's tech stack. Manual, engineer-reviewed.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `/iroha:init` | One-time setup (idempotent): create or join the Notion databases + views. |
+| `/iroha:save-session` | Save this session: summary, decisions, rules changed, work-state, highlights, changed files. |
+| `/iroha:recall <query>` | Semantic search over Sessions + Decisions for past decisions and similar prior work. |
+| `/iroha:project` | Capture/update this project's architecture profile (manual). |
+
+## What iroha is **not**
+
+- **No secrets.** No API token to manage — Notion auth is MCP OAuth only; only non-secret
+  ids are cached locally.
+- **No relation properties.** Session↔Decision links use a URL property (a known
+  relation-write bug in the Notion MCP); promotable to native relations once stable.
+- **No full transcript dump.** The chat is kept as curated, collapsible **highlights**,
+  not a verbatim copy.
+- **No save coercion.** Hooks remind, they don't block.
+
+## Design
+
+- Architecture invariants: [`.claude/rules/architecture.md`](.claude/rules/architecture.md)
+- Project notes & scope: [`CLAUDE.md`](CLAUDE.md)
+- Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Security: [`SECURITY.md`](SECURITY.md)
+
+## License
+
+[MIT](LICENSE) © Shunichi Hirata
