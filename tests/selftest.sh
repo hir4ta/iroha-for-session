@@ -195,12 +195,21 @@ has ri-inject-content "DecisionX" "$hp"
 eq ri-cache-second-empty "" "$(ri "please add a login endpoint with validation" sid1)"
 eq ri-gate-short "" "$(ri "hi there" sid2)"
 eq ri-gate-slash "" "$(ri "/iroha:recall some topic here" sid3)"
+# system / automation pseudo-turns must NOT spawn a headless recall (observed live: a
+# task-notification slipped the gate and injected an off-topic abstention).
+eq ri-gate-tasknotif "" "$(ri "<task-notification> an async agent just finished its work" sidT)"
+eq ri-gate-sysreminder "" "$(ri "<system-reminder> background reference context, not a request" sidS)"
 eq ri-recursion-guard "" "$(ri "build a substantial new feature now" sidR IROHA_RECALL_CHILD=1)"
 eq ri-disable "" "$(ri "build a substantial new feature now" sidD IROHA_RECALL_DISABLE=1)"
 # abstention: stub returns NONE -> no injection
 printf '#!/usr/bin/env bash\necho NONE\n' >"$RIBIN/claude"
 chmod +x "$RIBIN/claude"
 eq ri-abstain-empty "" "$(ri "a distinct substantive request to recall" sid4)"
+# abstention robustness: a child that rambles WITHOUT a URL (an apology / clarifying question,
+# seen live when a fragment slipped through) must NOT be injected — the positive URL shape gate.
+printf '#!/usr/bin/env bash\necho "Sorry, your request seems cut off. What are you looking for?"\n' >"$RIBIN/claude"
+chmod +x "$RIBIN/claude"
+eq ri-abstain-no-url "" "$(ri "yet another distinct substantive recall request" sid7)"
 # not initialized: empty config -> degrade (no injection)
 RIDATA2=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data2.XXXXXX")
 eq ri-not-initialized "" "$(printf '{"prompt":"another substantive request here","session_id":"sid5","cwd":"/x"}' |
