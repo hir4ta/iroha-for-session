@@ -218,6 +218,10 @@ sc=$(env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA" PATH="$RIBIN:$
   bash "$HERE/../hooks/recall-inject.sh" --selfcheck)
 has ri-selfcheck-ready "READY" "$sc"
 has ri-selfcheck-guard "recursion guard short-circuits" "$sc"
+# selfcheck must work when run by hand (no CLAUDE_PLUGIN_ROOT) by deriving root from $0
+sc2=$(env -u CLAUDE_PLUGIN_ROOT IROHA_CONFIG_DIR="$RIDATA" PATH="$RIBIN:$PATH" \
+  bash "$HERE/../hooks/recall-inject.sh" --selfcheck)
+has ri-selfcheck-derives-root "READY" "$sc2"
 rm -rf "$RIDATA" "$RIDATA2" "$RIDATA3" "$RIBIN" "$RICACHE"
 
 echo "=== result: $pass passed, $fail failed ==="

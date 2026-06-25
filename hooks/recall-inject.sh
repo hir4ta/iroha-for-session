@@ -31,7 +31,11 @@ if [ "${1:-}" = "--selfcheck" ]; then
   else
     p FAIL "timeout/gtimeout present (macOS: brew install coreutils)"; ok=0
   fi
-  L="${CLAUDE_PLUGIN_ROOT:-}/scripts/_lib/config.sh"
+  # When run by hand from a shell, CLAUDE_PLUGIN_ROOT is unset (the harness sets it for the
+  # real hook). Derive the plugin root from this script's own path so --selfcheck works.
+  PR="${CLAUDE_PLUGIN_ROOT:-}"
+  [ -z "$PR" ] && PR="$(unset CDPATH; cd -- "$(dirname -- "$0")/.." 2>/dev/null && pwd)"
+  L="$PR/scripts/_lib/config.sh"
   if [ -f "$L" ] && [ -n "$(bash "$L" get decisions_ds_id 2>/dev/null)" ]; then
     p PASS "config initialized"
   else
