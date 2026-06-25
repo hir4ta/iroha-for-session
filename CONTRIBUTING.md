@@ -40,6 +40,19 @@ CI runs the same checks on every push and PR.
   `ci:`).
 - Keep secrets out of the repo (`gitleaks` runs in pre-commit and CI).
 
+## Releasing
+
+Releases are tag-driven. Bump the version in `package.json` and
+`.claude-plugin/plugin.json`, then push a `v*` tag:
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+That triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which
+creates the GitHub release with auto-generated notes.
+
 ## Reporting issues
 
 Open a GitHub issue with steps to reproduce. For security, see [`SECURITY.md`](SECURITY.md).

@@ -1,5 +1,7 @@
 # iroha for Notion
 
+**English** | [日本語](README.ja.md)
+
 > Persist Claude Code sessions to Notion as a living, queryable **team memory** —
 > decisions (with rationale and rejected alternatives), work-state, chat-style
 > highlights, and per-project architecture profiles. So humans *and* future Claude
