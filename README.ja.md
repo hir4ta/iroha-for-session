@@ -2,32 +2,40 @@
 
 [English](README.md) | **日本語**
 
-> Claude Code のセッションを Notion に「生きた・検索できる**チーム記憶**」として保存します —
-> 意思決定（理由と却下した代替案つき）・作業状態・チャット形式のハイライト・プロジェクトごとの
-> アーキテクチャ。人間も将来の Claude セッションも、何を・なぜ決めたか、何が未完了か、どう作られて
-> いるかを思い出せます。
+**Claude Code との会話を、Notion に「育つチームの記憶」として残すプラグインです。**
+
+セッションが終わるたびに、その回で何を・なぜ決めたか、何が残っているか、どう作られているかを
+Notion に整理して保存します。
+
+次に開くセッションは——自分のでもチームメイトのでも——ちゃんと続きから始められます。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/hir4ta/iroha-for-notion/actions/workflows/ci.yml/badge.svg)](https://github.com/hir4ta/iroha-for-notion/actions/workflows/ci.yml)
 
-## なぜ
+## こんな課題に
 
-Claude Code の組み込み記憶は薄く、1台のマシンに閉じています。iroha は各開発セッションを Notion 上の
-構造化された検索可能な記憶に変えます。次のセッション（あなた自身でもチームメイトでも）は、プロジェクトの
-意思決定・未完了の作業・構成を**すでに知った状態**で始まります。使うほど育ち、「前に似たものを作ったっけ?」
-と聞けば、過去のセッション・変更したファイル・その理由を指し示します。
+Claude のメモリは便利ですが、薄いし、しかも自分のマシンの中だけ。
 
-## 仕組み
+「あの判断、なんでそうしたんだっけ?」「前に似たもの作らなかった?」が、毎回ふりだしに戻ります。
 
-- **ランタイムは pure bash**（`scripts/extract.sh`、`set -u` + `jq`）: セッションのトランスクリプトから
-  決定論的な抽出（変更ファイル・コマンド・メタ情報）を行います。**知性**（要約・意思決定・分類・ハイライト）
-  はスキル内の Claude が担います。
-- Notion の読み書きはすべて **Notion MCP** 経由 — **API トークンは不要**。認証は MCP の OAuth だけなので
-  セットアップは接続1回。リコールは**無料プラン**でも動く `notion-search` を使います。
-- SessionStart フックがプロジェクトの **State**（リポジトリ内の小さなミラー）を注入するので、Claude が
-  「前回どこまで・何が未完了か」を自分から教えてくれます。
+iroha は、その記憶を Notion に逃がします。
 
-## 記憶モデル — 3層 + State
+検索できて、チームで共有できて、使うほど厚くなる。「前に似た実装したっけ?」と聞けば、
+その時のセッション・触ったファイル・理由まで返ってきます。
+
+## どう動くのか
+
+役割はシンプルに分かれています。
+
+- **決まりきった抽出は bash に。** `scripts/extract.sh`（pure bash + jq）が、トランスクリプトから変更ファイル・コマンド・メタ情報を取り出します。
+- **頭を使うところは Claude に。** 要約・意思決定の抽出・分類・チャットのハイライトは、スキルの中で Claude 本体が書きます。
+- **Notion とのやりとりは MCP だけ。** API トークンは持ちません。認証は Notion MCP の OAuth ひとつ。検索（リコール）は無料プランでも動く `notion-search` を使います。
+
+セッションを開いた瞬間、フックがプロジェクトの「現在地」を注入します。
+
+だから Claude は、頼まなくても「前回ここまで、これが未完了です」と教えてくれます。
+
+## 記憶のかたち — 3層 + State
 
 ```mermaid
 graph TD
@@ -43,19 +51,23 @@ graph TD
   DEC -->|notion-search| RC["/iroha:recall"]
 ```
 
-- **Sessions** — 各回に何が起きたか: 要約・下した意思決定・チャットハイライト・変更ファイル。
-- **Decisions** — *なぜ*今の形なのか: 理由 + 却下した代替案、supersession（方針転換）の履歴つき。
-- **Projects** — *今プロジェクトに何があるか*: 言語・主要ライブラリ・開発ツール・CI・アーキテクチャ図。オンボーディングと横断検索のため。
-- **State ページ** — 常に最新の「今どこ / 何が未完了」。セッション開始時に注入されます。
+| 層 | 役割 |
+| --- | --- |
+| **Sessions** | その回に何が起きたか（要約・下した決定・ハイライト・変更ファイル）。 |
+| **Decisions** | なぜ今の形なのか（理由と却下案。方針転換の履歴も残ります）。 |
+| **Projects** | いま何で出来ているか（言語・ライブラリ・CI・構成図）。オンボーディングと横断検索に。 |
+| **State** | 「今どこ / 何が残っているか」。セッション開始時に注入されます。 |
 
 ## 必要なもの
 
-- [Claude Code](https://code.claude.com/docs)
-- Notion アカウント + **ホスト型 Notion MCP** の接続（OAuth）。**無料プラン**で動きます。
+- Claude Code
+- Notion アカウントと、ホスト型 Notion MCP の接続（OAuth）
 
-## インストール
+無料プランでそのまま動きます。
 
-Claude Code 内で:
+## 入れる
+
+Claude Code の中で:
 
 ```
 /plugin marketplace add hir4ta/iroha-for-notion
@@ -64,33 +76,33 @@ Claude Code 内で:
 
 ## はじめかた
 
-1. **Notion MCP を接続** — `/mcp` を実行し `notion` を選び、ブラウザで OAuth を完了。
-2. **`/iroha:init`** — `Sessions` / `Decisions` / `Projects` データベース（Recent / Active / By Language ビューつき）を、選んだ Notion ページ配下に作成。共有ページで再実行すればチームメイトが**参加**できます。
-3. **`/iroha:save-session`** — 今のセッションを保存。
-4. **`/iroha:recall <query>`** — 「X をやらないと決めた? 理由は?」「前に作ったっけ?」。
-5. **`/iroha:project`** — プロジェクトの技術スタックを記録/更新（手動・エンジニアレビュー）。
+1. **Notion をつなぐ** — `/mcp` から `notion` を選び、ブラウザで OAuth を済ませます。
+2. **`/iroha:init`** — Sessions / Decisions / Projects のデータベースを、選んだページの下に作ります。チームで使うなら、同じページで誰かが実行すれば参加できます。
+3. **`/iroha:save-session`** — いまのセッションを保存。
+4. **`/iroha:recall <調べたいこと>`** — 「X をやめたのはなぜ?」「前に作ってない?」
+5. **`/iroha:project`** — プロジェクトの技術スタックを記録します（手動。エンジニアが確認してから）。
 
 ## コマンド
 
 | コマンド | 何をするか |
 | --- | --- |
-| `/iroha:init` | 一度きりのセットアップ（冪等）: Notion DB + ビューを作成 or 参加。 |
-| `/iroha:save-session` | このセッションを保存: 要約・意思決定・変えたルール・作業状態・ハイライト・変更ファイル。 |
-| `/iroha:recall <query>` | Sessions + Decisions を意味検索し、過去の決定や類似の過去作業を引く。 |
-| `/iroha:project` | このプロジェクトのアーキテクチャ記録を作成/更新（手動）。 |
+| `/iroha:init` | 一度きりのセットアップ（冪等）。Notion の DB とビューを作る、または既存に参加する。 |
+| `/iroha:save-session` | このセッションを保存。要約・決定・変えたルール・作業状態・ハイライト・変更ファイル。 |
+| `/iroha:recall <query>` | Sessions と Decisions を意味検索。過去の決定や、似た過去作業を引く。 |
+| `/iroha:project` | このプロジェクトのアーキテクチャを記録／更新（手動）。 |
 
-## iroha が**しない**こと
+## あえて、やらないこと
 
-- **秘密を持たない。** 管理する API トークン無し — Notion 認証は MCP OAuth のみ、ローカルには非秘密の id だけ。
-- **relation プロパティを使わない。** Session↔Decision は URL プロパティで連結（Notion MCP の relation 書き込みの既知バグ回避）。安定後にネイティブ relation へ昇格可。
-- **全文ダンプをしない。** チャットは要点だけの折りたたみ**ハイライト**として残します。
-- **保存を強制しない。** フックはリマインドのみ、ブロックはしません。
+- **秘密は持たない。** 管理する API トークンはありません。認証は MCP の OAuth だけ、手元に置くのは秘密でない id だけです。
+- **relation プロパティは使わない。** Notion MCP の relation 書き込みにバグがあるので、URL で連結しています（安定したら乗り換え可）。
+- **会話を丸ごとは残さない。** 大事なやりとりだけを、折りたためる「ハイライト」として残します。
+- **保存を強制しない。** フックはそっと促すだけ。あなたを止めたりはしません。
 
-## 設計
+## もっと知る
 
-- アーキテクチャ不変条件: [`.claude/rules/architecture.md`](.claude/rules/architecture.md)
-- プロジェクトのメモ・スコープ: [`CLAUDE.md`](CLAUDE.md)
-- 貢献: [`CONTRIBUTING.md`](CONTRIBUTING.md) · セキュリティ: [`SECURITY.md`](SECURITY.md)
+- 設計の不変条件 — [`.claude/rules/architecture.md`](.claude/rules/architecture.md)
+- プロジェクトのメモとスコープ — [`CLAUDE.md`](CLAUDE.md)
+- 開発に参加する — [`CONTRIBUTING.md`](CONTRIBUTING.md) ／ セキュリティ — [`SECURITY.md`](SECURITY.md)
 
 ## ライセンス
 
