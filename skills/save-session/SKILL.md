@@ -44,6 +44,9 @@ bash "$E" meta     "$TX"   # JSON: title, started, ended, cwd, gitBranch, model
 bash "$E" files    "$TX"
 bash "$E" commands "$TX"
 bash "$E" prompts  "$TX"   # the human's real messages — the You-side anchor (step 7)
+bash "$E" stats    "$TX"   # JSON metrics: turns, toolCalls, filesEdited, bash, durationMin
+bash "$E" tools    "$TX"   # per-tool tally for the Details / Tools toggle
+bash "$E" chat     "$TX"   # cleaned full chat (per-turn capped) for the Full-chat toggle
 git config user.name 2>/dev/null || echo "unknown"   # Author
 ```
 
@@ -91,22 +94,31 @@ rename, or reorder anything else (English canonical names shown — translate th
 user's language). Do **not** add an Overview / meta table — the page properties already
 show Project / Status / Type / Date / Branch / Author at the top:
 1. a header `<callout color="blue_bg">` with the one-line summary;
-2. `## Architecture` *(optional — only when the work has structure)* with a ```mermaid``` diagram;
-3. `## Decisions` as a `<table header-row="true">` with a `<tr color="blue_bg">` header
+2. `## Metrics` — a `<callout color="gray_bg">` dashboard built **verbatim from
+   `extract.sh stats`** (never hand-count). One line, ` · `-separated, e.g.
+   `⏱ 79 min · 🗣 4↔38 turns · 🔧 72 tool calls · ✎ 5 files · ⌘ 12 bash` — but **no emoji**
+   (house rule): use text labels instead — `Duration 79 min · Turns 4↔38 · Tool calls 72
+   · Files 5 · Bash 12`. Always included; it makes each session scannable at a glance;
+3. `## Architecture` *(optional — only when the work has structure)* with a ```mermaid``` diagram;
+4. `## Decisions` as a `<table header-row="true">` with a `<tr color="blue_bg">` header
    (columns: Decision / Why / Rejected alternatives);
-4. `## Progress` as a green_bg callout (Done) + an orange_bg callout (Unfinished, `- [ ]`);
-5. `## Highlights` — 5-8 pivotal exchanges as alternating chat-style callouts
+5. `## Progress` as a green_bg callout (Done) + an orange_bg callout (Unfinished, `- [ ]`);
+6. `## Highlights` — 5-8 pivotal exchanges as alternating chat-style callouts
    (You = `blue_bg`, Claude = `gray_bg`); the **You** lines come from the `prompts`
    extract (real messages, never invented), Claude lines are paraphrased — **not** the
    full chat (see step 7);
-6. `## Rules changed` *(optional — only when this session established or changed a rule)*
+7. `## Rules changed` *(optional — only when this session established or changed a rule)*
    as a `<callout color="gray_bg">`; omit the whole section when no rule changed;
-7. `## Failures` *(optional — only when there were notable pitfalls)* as a
+8. `## Failures` *(optional — only when there were notable pitfalls)* as a
    `<details><summary>…</summary>` toggle (pitfall -> fix);
-8. `## Details` with `<details><summary>…</summary>` toggles for **Changed files** and
-   **Commands** — render these as **bulleted lists**: the `extract.sh files` and
-   `commands` outputs are already `- ` lists, so use them verbatim (never join entries
-   with `·` or other separators).
+9. `## Details` with `<details><summary>…</summary>` toggles, in this order:
+   **Changed files** (`extract.sh files`), **Commands** (`extract.sh commands`),
+   **Tools** (`extract.sh tools` — the per-tool tally), and **Full chat** (`extract.sh
+   chat` — the cleaned, per-turn-capped transcript that backs the curated Highlights;
+   this is the audit trail, collapsed by default). Render the `files` / `commands` /
+   `tools` outputs as **bulleted lists** verbatim (they are already `- ` lists; never
+   join entries with `·`). For **Full chat**, render each line as its own paragraph;
+   if `chat` is empty (rare), write "（本文なし）" rather than dropping the toggle.
 Wrap every file name / command / path in backticks — **including inside callouts and
 tables** — so Notion does not auto-linkify `.sh` / `.md` names as `http://…` URLs.
 Indent callout / toggle / table children with **tabs**. Keep the returned page URL.

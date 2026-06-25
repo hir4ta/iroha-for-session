@@ -128,7 +128,8 @@ case "$cmd" in
           else empty end
         | (.text | gsub("\\s+"; " ") | gsub("^ +| +$"; "")) as $t
         | select($t != "")
-        | "**" + .role + "** " + $t
+        | ($t | if length > 600 then .[0:600] + " …(略)" else . end) as $c
+        | "**" + .role + "** " + $c
       ] | .[]
     '
     ;;
