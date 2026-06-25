@@ -15,6 +15,15 @@ iroha is designed to hold **no secrets**:
 When iroha writes a session to Notion, it omits anything that looks like a secret. Still,
 treat your Notion workspace as the source of truth and review what you save.
 
+## Trust boundary: the committed State mirror
+
+The SessionStart hook injects `.iroha/state.md` into Claude's context so it knows where
+the project left off. Because that file is committed and shared with the team, **review
+changes to `.iroha/` like code** in pull requests — a crafted State mirror could try to
+slip instructions into a teammate's session (prompt injection). The hook caps the
+injected size and labels the content as reference data rather than instructions, but the
+human review of `.iroha/` diffs is the real safeguard.
+
 ## Reporting a vulnerability
 
 Please report security issues privately via GitHub's

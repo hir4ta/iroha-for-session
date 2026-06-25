@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # config.sh — read/write the plugin's persisted config (Notion DB / page ids).
-# Lives at ${CLAUDE_PLUGIN_DATA}/config.json (the plugin's persistent data dir).
+# Lives at $HOME/.iroha-for-notion/config.json (override the dir with IROHA_CONFIG_DIR).
 # Sourceable library: pure jq over a small JSON file, no network. Holds only
-# non-secret ids (auth is handled by the Notion MCP OAuth connection).
+# non-secret ids (auth is handled by the Notion MCP OAuth connection):
 #
-#   { "container_page_id": "...", "session_db_id": "...", "decisions_db_id": "...",
+#   { "container_page_id": "...",
+#     "session_db_id": "...",   "session_ds_id": "...",
+#     "decisions_db_id": "...", "decisions_ds_id": "...",
+#     "projects_db_id": "...",  "projects_ds_id": "...",
 #     "state_pages": { "<project-key>": "<page_id>", ... } }
 set -u
 
@@ -15,12 +18,17 @@ iroha_config_path() {
   printf '%s/config.json' "$base"
 }
 
-# Create the file with an empty skeleton if missing; echo its path.
+# Create the file with an empty skeleton if missing or corrupt; echo its path. A
+# corrupt config.json (e.g. an interrupted write) is backed up and reset, so get/set
+# and /iroha:init recover instead of failing forever.
 iroha_config_ensure() {
   local f
   f="$(iroha_config_path)"
+  mkdir -p "$(dirname "$f")"
   if [ ! -f "$f" ]; then
-    mkdir -p "$(dirname "$f")"
+    printf '{"state_pages":{}}\n' >"$f"
+  elif ! jq -e . "$f" >/dev/null 2>&1; then
+    mv "$f" "$f.corrupt.$$" 2>/dev/null || true
     printf '{"state_pages":{}}\n' >"$f"
   fi
   printf '%s' "$f"
