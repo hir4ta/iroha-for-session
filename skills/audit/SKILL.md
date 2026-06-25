@@ -48,6 +48,13 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   - its header summary vs the newest Session's `Summary` (stale if it names an older
     state, e.g. "2 DB" when the newest session is "3 DB"); (medium)
   - its **Recent sessions** links vs the actual newest Sessions (missing/wrong); (medium)
+  - **escape artifacts** — the body contains a literal `\n` or `\t` two-character sequence,
+    or text like `nt…n` at a line's edge (a past save leaked `\n\t` into Notion as `nt…n`).
+    The page should have real line breaks; flag it. (medium — corrupts the human-facing page.)
+  - **missing sections / stub State** — the page is missing any required part (summary,
+    `## Recent sessions`, `## Unfinished / Next`, a `## Decisions` link). A State that is just
+    a summary breaks the SessionStart continuity it exists to provide — and means it diverged
+    from the `.iroha/state.md` mirror, which should be byte-identical. (medium)
   - **stale unfinished** — any `- [ ]` item carried for **3+ sessions** (look for the
     `[carried Nx]` marker save-session writes, or infer from dates). (low — but nag-worthy.)
 - **E. Structure drift** — a Session missing a required section (`## Metrics`,
@@ -57,6 +64,13 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
 - **F. Granularity smell** — `Active` decisions that are display/naming/wording tweaks
   rather than architecture/dependency/process (they belong in a Session's decision table,
   not the Decisions DB). (low — recall signal-to-noise.)
+- **G. Projects profile drift** — `notion-search` the Projects DB for this project's row and
+  `notion-fetch` it; flag: an `Updated` date far behind the newest Session; a field that
+  contradicts the current repo (e.g. `CI` says "none/未設定" when `.github/workflows/` exists,
+  or a recall/stack note that a later Decision has since changed); or a file name
+  auto-linkified into a bogus `http://…sh` / `http://…md` URL (it should be backticked). The
+  cross-project layer is **manually updated**, so it rots silently. Fix = re-run
+  `/iroha:project`. (low.)
 
 ## 3. Report (always)
 
@@ -73,11 +87,16 @@ report), apply **only the safe, reversible** fixes and re-report each:
 - **A / B** — set the older/duplicate decision's `Status = Superseded` with
   `notion-update-page` (never delete — the change of mind is itself memory). Leave the
   current one `Active`.
-- **D (summary / recent)** — refresh the State page via `notion-update-page`
-  `replace_content` to match the newest Session, and re-mirror to `<repo>/.iroha/state.md`
-  (`bash "$L" state-md-path "$PWD"`); remind the user to commit it.
+- **D (summary / recent / escape / missing sections)** — rewrite the State following
+  save-session §8's **single-source** rule: compose the body ONCE (summary + `## Recent
+  sessions` + `## Unfinished / Next` + `## Decisions` link, real newlines, no literal
+  `\n`/`\t`), write it to `<repo>/.iroha/state.md` (`bash "$L" state-md-path "$PWD"`), then
+  `notion-update-page` `replace_content` with that **same** text so the page and mirror match;
+  remind the user to commit it.
 - **D (stale unfinished)** — propose dropping or re-confirming each stale `- [ ]`; apply
   the user's call.
+- **G (Projects drift)** — re-run `/iroha:project` to rewrite the row from the current repo
+  (it fully replaces the body + `Updated`). Reversible; safe to apply on confirmation.
 - **C / E / F** — these need human judgment (delete? rewrite? demote?). Report them with a
   recommended action but **do not** auto-apply; ask.
 
