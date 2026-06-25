@@ -71,14 +71,25 @@ OAuth connection — there is no API token.
    bash "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
    ```
 
-8. **Create views on the Sessions database** for at-a-glance browsing (uses the
-   Sessions `database_id` + data source id from step 6):
-   - `notion-create-view` type `calendar`, configure `CALENDAR BY "Date"`.
-   - `notion-create-view` type `board`, configure `GROUP BY "Status" SORT BY "Date" ASC`.
-   (A `chart` view — e.g. count by `Type` — is worth adding once sessions accumulate.)
+8. **Create views for fast team browsing.** On the **Sessions** database (uses its
+   `database_id` + data source id from step 6):
+   - `notion-create-view` type `table` named **`Recent`**, `SORT BY "Date" DESC` — make
+     this the primary entry ("what did we do recently?" is the most common need, and a
+     date-descending table beats Calendar/Board for it).
+   - `notion-create-view` type `calendar`, `CALENDAR BY "Date"` (visual, secondary).
+   - `notion-create-view` type `board`, `GROUP BY "Status" SORT BY "Date" ASC` (secondary).
+   On the **Decisions** database:
+   - `notion-create-view` type `table` named **`Active`**, `FILTER "Status" = 'Active'`
+     so superseded / reverted decisions do not clutter "what did we decide?".
 
-9. **Confirm** with links to both databases and tell the user they can now run
-   `/iroha:save-session`.
+9. **Add an entry-point guide to the parent page.** `notion-update-page`
+   `insert_content` at `{"type":"start"}` a one-line `<callout color="gray_bg">`: how to
+   navigate (progress → State / past decisions → Decisions / each run → Sessions
+   `Recent`) and the naming conventions — sessions `YYYY-MM-DD — <topic>`, decisions
+   `<topic>: <choice>`. This hands a teammate the whole map in one glance.
+
+10. **Confirm** with links to both databases and tell the user they can now run
+    `/iroha:save-session`.
 
 ## Notes
 
