@@ -122,7 +122,10 @@ show Project / Status / Type / Date / Branch / Author at the top:
 7. `## Rules changed` *(optional — only when this session established or changed a rule)*
    as a `<callout color="gray_bg">`; omit the whole section when no rule changed;
 8. `## Failures` *(optional — only when there were notable pitfalls)* as a
-   `<details><summary>…</summary>` toggle (pitfall -> fix);
+   `<details><summary>…</summary>` toggle. Write each as **symptom → root cause → fix**
+   (Reflexion: a failure is first-class, recallable memory — phrase the symptom in the words
+   a future search would use, so the next session surfaces it *before* repeating the
+   dead-end);
 9. `## Details` with `<details><summary>…</summary>` toggles, in this order:
    **Changed files** (`extract.sh files`), **Commands** (`extract.sh commands`),
    **Tools** (`extract.sh tools` — the per-tool tally). Render the `files` / `commands` /

@@ -62,6 +62,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh" find-topic "$PWD" "<topic>"
   list the **files it changed** and the decisions it set — "we've done this before;
   here's the reference and what to reuse." This is what makes iroha pay off more the
   more the team uses it.
+- **Past failures (Reflexion)**: when the request resembles earlier work, surface any
+  recorded `## Failures` (symptom → cause → fix) from prior Sessions so the dead-end is not
+  repeated — "we hit X before; the cause was Y; the fix was Z." Avoiding a known dead-end is
+  as valuable as reusing a decision.
 - De-duplicate near-identical hits; report the current decision, not superseded copies.
 - **Stale Session summaries.** A Session's `Summary` is a snapshot from its date and may
   describe a since-changed state (an old session may say "2 DB" when the project now has
