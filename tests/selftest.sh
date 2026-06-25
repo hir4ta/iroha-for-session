@@ -130,10 +130,11 @@ run_hook() {
 }
 out=$(run_hook)
 has hook-injects-state "STATE-CONTENT-XYZ" "$out"
-has hook-reminds-unsaved "未保存" "$out"
+has hook-reminds-unsaved "not saved" "$out"
+has hook-open-count "Open items carried over" "$out"
 has hook-json-shape "hookSpecificOutput" "$out"
 mkdir -p "$HOOKDATA/saved" && : >"$HOOKDATA/saved/old"
-hasnt hook-no-remind-when-saved "未保存" "$(run_hook)"
+hasnt hook-no-remind-when-saved "not saved" "$(run_hook)"
 rm -f "$PROJ/.iroha/state.md" "$HOOKHOME/.claude/projects/$HASH/old.jsonl"
 eq hook-silent-when-empty "" "$(run_hook)"
 # missing CLAUDE_PLUGIN_ROOT must exit 0 silently, not crash under set -u
