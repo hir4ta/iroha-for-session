@@ -9,6 +9,7 @@ extend-ignore-re = [
 
 [default.extend-words]
 iroha = "iroha"
+mis = "mis"      # valid prefix token in "mis-attribute" / "mis-groups" (typos splits on the hyphen)
 
 [files]
 extend-exclude = [

@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history so gitleaks scans every commit, not just the tip
 
       - uses: actions/setup-node@v5
         with:
@@ -23,6 +25,17 @@ jobs:
 
       - name: Shellcheck
         run: find scripts hooks tests -name '*.sh' -print0 | xargs -0 shellcheck
+
+      # Secret + typo scans — mirror the pre-commit hooks so a contributor without the
+      # pre-push hook installed cannot land a secret or typo on a green CI (the gap that
+      # let CI pass while pre-commit ⊋ CI). Same tool versions as .pre-commit-config.yaml.
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Typo scan (typos)
+        uses: crate-ci/typos@v1.46.0
 
       - name: Behavioral selftest
         run: npm run test:bash
