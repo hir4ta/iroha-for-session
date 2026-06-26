@@ -1,4 +1,4 @@
-**Latest (2026-06-26):** 三度目の評価→config妥当性の自己監視を実装し Critical(`decisions_ds_id=DSID` が canonical recall/audit/決定保存を黙殺)を根治(selftest 98→103)。続けて `/iroha:audit` 相当でコンテンツ rot を一掃: 欠落決定「完全性: integrity floor 常設」を DB 化、偽 http リンク3件・recall 100% 陳腐化・hybrid の scope・Projects 陳腐化(JavaScript 追記)を修正、CI に gitleaks/typos を追加(pre-commit とミラー)。全 green・4 commit。
+**Latest (2026-06-26):** 三度目評価→config妥当性の自己監視で Critical(`decisions_ds_id=DSID`)根治・`/iroha:audit` 相当でコンテンツ rot 一掃・CI に gitleaks/typos。続けて recall@3 の2 MISS を調査: 「BM25 ∪ dense」は dead-end(bi-encoder anisotropy)かつ機構違い(MISS は候補網内の ranking/JP-EN 同義語問題)と判明し、設計済み cross-encoder rerank(570MB bge-m3)を deploy+実機検証 — 「セッション↔SessionEnd」の同義語ギャップを rank1 に修正・誤注入 0/5、rerank-eval に恒久ロック。selftest 103 全green・5 commit。
 
 ## Recent sessions
 - [2026-06-26 — config自己監視と三度目の評価](https://app.notion.com/p/38b822c6938a81a98378cb726b9c516d)
@@ -8,10 +8,11 @@
 - [2026-06-25 — トラスト根治とスケール実証](https://app.notion.com/p/38a822c6938a8189b9e6f5c84d304efa)
 
 ## Unfinished / Next
-- [ ] ハイブリッド検索(BM25 ∪ dense)→ rerank(rerank 単体では候補化漏れ=今の2 MISS を直せない。recall@3=81% の本道)
-- [ ] rerank 前段を非iroha/非日本語の実プロジェクトで実証(N=1 脱出) [carried 2x]
+- [ ] session recall が貧弱(全 session snippet が「忖度なし評価(N)→…」で酷似し判別不能)→ save-session に判別的 snippet 指針 + recall-eval に session positive ケースを追加して測定可能化
+- [ ] rerank の CI 検証(モデル不在で `test:rerank` は今も SKIP)— 軽量モデルを CI に置くか SKIP 許容を明記
+- [ ] rerank を非iroha/非日本語の実プロジェクトで実証(iroha では deploy 済・N=1 脱出が残課題) [carried 2x]
 - [ ] 旧 Session ページ群の体裁リトロフィット(再保存で自動反映) [carried 6x]
-- [ ] 小粒: `extract.sh` が `<teammate-message>` を人間 turn に計上(isMeta 類似の新ノイズ class)・`digest` の index 列挙化・`release.yml` の version/test ゲート
+- [ ] 小粒: `extract.sh` が `<teammate-message>` を人間 turn に計上・`digest` の index 列挙化・`release.yml` の version/test ゲート
 
 ## Decisions
 過去の判断・理由・却下案は [Decisions DB](https://app.notion.com/p/128c8c81e60d4443a82cabfd84eb243f) を参照。実装前に `/iroha:recall <topic>` で確認(UserPromptSubmit フックがローカル BM25 で関連決定を常時先出し)。
