@@ -34,6 +34,11 @@ changed, and why.
   `/iroha:recall` escalates to Notion **semantic** search (`notion-search`, free plan) for the
   full rationale and rejected alternatives. (At this corpus scale lexical ≈ dense, so the cheap
   stage carries most of the weight; the semantic stage catches the paraphrases it misses.)
+  *Optional:* `npm run rerank:setup` arms a local **cross-encoder reranker** that re-judges the BM25
+  candidates for higher precision — it filters out same-vocabulary-but-off-topic decisions the
+  lexical stage can't separate (measured: drives false injections to zero). Opt-in and heavy (a
+  local model; default ~570MB multilingual, or a ~37MB Japanese-specialized option) — a fresh
+  install stays pure-bash and pays nothing.
 - A SessionStart hook injects the project's **State** (from a small repo mirror) so
   Claude proactively tells you where you left off and what's unfinished. After `/compact`
   or auto-compact it also **re-injects the current session's own thread** (your prompts +

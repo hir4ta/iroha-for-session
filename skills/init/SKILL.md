@@ -126,6 +126,14 @@ API token.
     (disable any time with `IROHA_RECALL_DISABLE=1`; verify readiness with
     `bash "${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.sh" --selfcheck`).
 
+    **Optional higher-precision recall (opt-in, heavy).** Proactive recall runs on the pure-bash
+    BM25 stage by default — zero deps, instant. For higher precision (a local cross-encoder reranker
+    that filters out same-vocabulary-but-off-topic decisions BM25 cannot separate), the user can run
+    `npm run rerank:setup` once: it installs a Node runtime dep and downloads a local model
+    (~570MB for the default multilingual model, or set
+    `IROHA_RERANK_MODEL=hotchpotch/japanese-reranker-xsmall-v2` for ~37MB). Mention this as an option,
+    do **not** run it as part of init — a fresh install must stay dependency-free.
+
 ## Notes
 
 - Databases are shared across projects; the `Project` property separates them.

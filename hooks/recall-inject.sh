@@ -95,9 +95,50 @@ key=$(printf '%s' "$prompt" | cksum | tr -cd '0-9')
 
 # 5. Cheap local BM25 recall over the keys-only index. No LLM, no network. Abstain (exit 0) when
 #    nothing clears the relevance floor — a confident false hit is worse than an honest silence.
+#    When the (opt-in) reranker is armed, cast a WIDER BM25 net here so the cross-encoder has a real
+#    shortlist to judge; it then narrows back to TOPN. BM25 alone is high-recall but low-precision on
+#    a small single-domain corpus (a prompt sharing only the project's vocabulary lexically matches
+#    an unrelated decision); the reranker is the precision filter (measured: it crushes those to ~0).
+rerank_on=0
+if [ "${IROHA_RERANK_DISABLE:-}" != "1" ] \
+   && [ "$(bash "$L" get rerank_enabled 2>/dev/null)" = "true" ] \
+   && command -v node >/dev/null 2>&1; then
+  rerank_on=1
+fi
+cand_n="${IROHA_RECALL_TOPN:-3}"
+[ "$rerank_on" = 1 ] && cand_n="${IROHA_RERANK_CANDIDATES:-8}"
 hits=$(bash "$PR/scripts/_lib/search.sh" "$root" "$prompt" "" \
-  "${IROHA_RECALL_TOPN:-3}" "${IROHA_RECALL_MINSCORE:-1.2}" 2>/dev/null)
+  "$cand_n" "${IROHA_RECALL_MINSCORE:-1.2}" 2>/dev/null)
 [ -z "$hits" ] && exit 0
+
+# 5b. Precision gate (OPT-IN): re-judge the BM25 candidates with the local cross-encoder reranker
+#     (scripts/rerank.mjs). It returns only candidates whose (prompt, decision) relevance clears the
+#     threshold, in rerank order. Distinguish two outcomes from rerank.mjs:
+#       exit 0 + empty   -> judged everything irrelevant: CONFIDENT ABSTAIN (the precision win).
+#       exit 0 + results -> keep only those (the BM25 false positives are dropped here).
+#       exit 3           -> model/runtime not installed (user has not completed rerank setup):
+#                           fall back to the BM25 advisory hits (no regression vs the pure-bash path).
+if [ "$rerank_on" = 1 ] && [ -f "$root/.iroha/index.ndjson" ]; then
+  ids_json=$(printf '%s\n' "$hits" | jq -s -c '[.[].id]' 2>/dev/null)
+  docs=$(jq -s -c --argjson ids "$ids_json" '
+    [ .[] | select(.id as $i | $ids | index($i)) | {id, text: ([.title,.topic,.text]|map(select(.!=null and .!=""))|join(" "))} ]' \
+    "$root/.iroha/index.ndjson" 2>/dev/null)
+  payload=$(jq -nc --arg q "$prompt" --argjson docs "$docs" \
+    --argjson th "${IROHA_RERANK_THRESHOLD:-0.05}" --argjson tn "${IROHA_RECALL_TOPN:-3}" \
+    '{query:$q, docs:$docs, threshold:$th, topn:$tn}' 2>/dev/null)
+  survivors=$(printf '%s' "$payload" \
+    | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}" \
+      node "$PR/scripts/rerank.mjs" 2>/dev/null)
+  rc=$?
+  if [ "$rc" = 0 ] && [ -n "$survivors" ]; then
+    [ "$(printf '%s' "$survivors" | jq 'length' 2>/dev/null)" = "0" ] && exit 0   # confident abstain
+    hits=$(printf '%s\n' "$hits" | jq -s -c --argjson surv "$survivors" '
+      (map({key:.id, value:.}) | from_entries) as $m
+      | [ $surv[] | $m[.id] ] | map(select(. != null)) | .[]' 2>/dev/null)
+    [ -z "$hits" ] && exit 0
+  fi
+  # exit 3 (no model/runtime) -> $survivors empty / non-zero exit -> fall through with BM25 hits.
+fi
 
 # 6. Format hits as reference bullets (reconstruct a Notion URL from the bare page id).
 bullets=$(printf '%s\n' "$hits" | jq -r '

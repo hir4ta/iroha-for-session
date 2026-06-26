@@ -32,3 +32,6 @@ jobs:
 
       - name: Recall scale check
         run: npm run test:scale
+
+      - name: Rerank precision eval (skips unless the opt-in model is installed)
+        run: npm run test:rerank
