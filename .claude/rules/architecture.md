@@ -19,6 +19,17 @@
 - **データモデル**: Sessions + Decisions + Projects の **3 DB** + プロジェクト 1 枚の State ページ。
   ID は config.json にキャッシュ。**決定/ルールの正本は Decisions DB / CLAUDE.md** に一本化し、
   State / Session ページに全文転記しない (重複防止)。
+- **コンテナ構造は flat 蓄積を作らない**。container 直下は *ガイド callout + 3 DB + `States` フォルダ
+  + `Digests` フォルダ* だけ。**State ページ (プロジェクト毎 1 枚) は `States` フォルダ配下、Digest
+  ページ (実行毎) は `Digests` フォルダ配下**にぶら下げる — でないと参加プロジェクト数・digest 実行数
+  だけ container 直下に flat に増えて junk drawer 化する。`states_folder_id` / `digests_folder_id` を
+  config.json にキャッシュ (init が作成・team-join で再利用、旧 workspace には欠落時に作成して既存を移動)。
+  fallback: folder id が空 (folder 導入前の workspace) なら container 直下に作る。
+  **State と Projects 行は同じプロジェクトの別側面だが分離して持つ** (State=auto・毎 save・現在地 /
+  Projects=manual `/iroha:project`・恒久スタック)。カデンツも責務も違うので**畳まず相互リンク**で繋ぐ:
+  State の `## Decisions` 節が Projects 行へ、Projects 行 callout が State へリンクする。container
+  callout は最重要の **State ページを名前でなくリンク**で出し、決定は Decisions の **`Active` view** に
+  名指しで誘導する (初見の到達性)。
 - **3層メモリ**: Session=各回の出来事 / Decision=なぜ / **Projects (Architecture)=今の技術スタック**
   (言語・lib・CI・mermaid 図、手動更新 `/iroha:project`)。Projects は 1 行=1 プロジェクトの共有 DB、
   `Languages` のみ multi_select、横断検索 (同言語/同 lib の他プロジェクト) に使う。Architecture には
@@ -53,8 +64,13 @@
   二重の真実にならずドリフトしない。recall は full text を `notion-fetch` で正本から取る。
   config.json / saved マーカーは $HOME (マシン固有)。State の未完了は save 毎にトリアージ。
 - **命名と履歴**: Session = `YYYY-MM-DD — 主題`、Decision = `トピック: 選択` (理由は Rationale、
-  却下案は Alternatives 欄)。決定を覆す時は旧行を **Status=Superseded** にし上書きしない (心変わりも
-  記憶)。**supersede は lineage edge を張る**: 新決定の `Supersedes` プロパティ=置換した旧決定の
+  却下案は Alternatives 欄)。**`トピック` は Decisions の一級 SELECT プロパティ**(`Name` から parse
+  でなく明示) ＝ supersede グルーピングを enum 一致で堅くし、Notion の `By Topic` board view で
+  決定ファミリーを俯瞰できる。`Project` 同様 write で auto-create されないので save が新トピックを
+  ALTER で足す(5.0 と同形)。近義の別トピック名を作らず既存を再利用し family を分散させない。
+  決定を覆す時は旧行を **Status=Superseded** にし上書きしない (心変わりも
+  記憶)。新決定本文に `Supersedes [旧トピック: 旧選択](url) — 一言` の人間可読 lineage 行を1行置く
+  (URL プロパティは裸リンクで何を覆したか見えないため)。**supersede は lineage edge を張る**: 新決定の `Supersedes` プロパティ=置換した旧決定の
   **URL**(relation 回避＝Session↔Decision と同じ URL 連結)、index は同じ辺を `supersedes`(旧 id)で
   ミラーする。`/iroha:history <topic>` が現行 Active から `index.sh chain` で「v3←v2←v1」を offline に
   辿り、各段の理由を notion-fetch で合成して**決定の進化を物語として**見せる。`supersedes` の指す id が
@@ -86,6 +102,6 @@
 - **派生スキルは正本を汚さない**。`/iroha:digest` (期間ロールアップ)・`/iroha:audit`
   (記憶の健全性監査=重複決定/State ドリフト/陳腐化/broken lineage の検出)・`/iroha:history`
   (決定の supersede 連鎖を辿る) は読むだけ (`notion-search`/`notion-fetch`/index)。
-  digest は container 配下に使い捨ての Digest ページを 1 枚書く (専用 DB は作らない)。audit の
+  digest は `Digests` フォルダ配下に使い捨ての Digest ページを 1 枚書く (専用 DB は作らない)。audit の
   修正系は `--fix`/確認時のみ、削除でなく `Status=Superseded`/欠落 `Supersedes` 補完 等の
   **可逆操作**に限る。

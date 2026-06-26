@@ -29,6 +29,14 @@ was already saved. Do **not** create duplicate Session / Decision rows — tell 
 it is already saved and offer to *update* the existing rows instead; stop unless they
 confirm. (Duplicate decisions are the one defect that rots the "living memory".)
 
+**Probe Notion auth NOW, before any extraction.** A connected MCP can still be
+*unauthenticated* (OAuth not completed) — and bash cannot detect that; you only find out
+when the first write 400s mid-save, after the local extraction is already done. So make one
+cheap read first: `notion-fetch <container_page_id>`. If it returns an auth/permission error,
+the Notion MCP is not authenticated — tell the user to complete the OAuth flow (`/mcp` →
+`notion`, or `claude mcp login notion`) and **stop**; resume the save once it succeeds. Doing
+this up front means the user authenticates *before* the work, not in the middle of it.
+
 ## 2. Locate this session's transcript
 
 Resolve it **deterministically** from the cwd — do **not** glob. (The old
@@ -37,7 +45,10 @@ observed to return empty and then hang for ~2 min; `transcript-path` derives the
 only falls back to a bounded `find` if the project root moved since launch.)
 
 ```bash
-TX=$(bash "$L" transcript-path "$PWD" "$CLAUDE_SESSION_ID")
+# Use ${CLAUDE_SESSION_ID} with braces — skill string substitution only fires on the
+# ${...} form. The bare $CLAUDE_SESSION_ID is NOT an env var in the Bash tool, so it
+# passes through unsubstituted and resolves to empty (transcript then "not found").
+TX=$(bash "$L" transcript-path "$PWD" "${CLAUDE_SESSION_ID}")
 echo "$TX"   # empty -> transcript not found; tell the user and stop
 ```
 
@@ -45,13 +56,13 @@ echo "$TX"   # empty -> transcript not found; tell the user and stop
 
 ```bash
 E="${CLAUDE_PLUGIN_ROOT}/scripts/extract.sh"
-bash "$E" meta     "$TX"   # JSON: title, started, ended, cwd, gitBranch, model
-bash "$E" files    "$TX"
-bash "$E" commands "$TX"
-bash "$E" prompts  "$TX"   # the human's real messages — the You-side anchor (step 7)
-bash "$E" stats    "$TX"   # JSON metrics: turns, toolCalls, filesEdited, bash, durationMin
-bash "$E" tools    "$TX"   # per-tool tally for the Details / Tools toggle
-bash "$E" chat     "$TX"   # cleaned full chat (per-turn capped) for the Full-chat toggle
+# ONE call parses the (large) transcript once and returns every view as a JSON object:
+#   .meta  {title, started, ended, cwd, gitBranch, model, sessionId}
+#   .stats {userTurns, assistantTurns, toolCalls, filesEdited, bashCommands, durationMin, …}
+#   .files / .commands / .prompts / .tools / .chat  — arrays of pre-formatted lines
+#     (.prompts = the human's real messages = the You-side anchor for step 7;
+#      .chat = cleaned full chat, per-turn capped, for the Full-chat child page in step 5b)
+bash "$E" all "$TX"
 git config user.name 2>/dev/null || echo "unknown"   # Author
 ```
 
@@ -87,6 +98,27 @@ assert it.
 
 ## 5. Create the Session row
 
+**5.0 — Ensure the `Project` option exists (first save of a new project).** `Project`
+is a **SELECT**, not a free string, and `notion-create-pages` does **not** auto-create
+a missing option — an unseeded value is rejected with a 400 (`Value must be one of: …`).
+So the *first* save of a new project (or a teammate joining a shared workspace) fails
+unless the option is added first. Before creating any row:
+
+- The current project is `basename "$PWD"`. `notion-fetch` the Sessions data source and
+  read its `Project` options to see whether it is already there.
+- If it is **missing**, this project is about to be added to a **shared** Notion
+  workspace (Sessions/Decisions DBs are shared across projects). **Ask the user once**
+  to confirm before mutating the shared schema (e.g. "Add `<project>` to the shared
+  iroha workspace and save the session here?"). On confirmation, add the option to
+  **both** data sources (they share the `Project` value):
+  ```
+  notion-update-data-source <session_ds_id>    statements: ALTER COLUMN "Project" SET SELECT(<existing options…>, '<project>':blue)
+  notion-update-data-source <decisions_ds_id>  statements: ALTER COLUMN "Project" SET SELECT(<existing options…>, '<project>':blue)
+  ```
+  `ALTER … SET` **replaces** the whole option list, so include every option you just
+  read **plus** the new one — never drop a teammate's project. If the option already
+  exists, skip this entirely (never re-ALTER on a normal save).
+
 `notion-create-pages` with `parent: {"type":"data_source_id","data_source_id":"<session_ds_id>"}`.
 Property map uses SQLite values:
 - `Name` (title) — **`YYYY-MM-DD — <topic>`** (start date + a ≤20-char noun-phrase
@@ -94,7 +126,8 @@ Property map uses SQLite values:
   only the Name, so the date prefix keeps them time-scannable. Good:
   `2026-06-24 — Notion integration design + Phase 1`. Bad: `iroha: design + impl` (no date) /
   `[Design/Impl] …` (Type duplicated).
-- `Project`, `Status`, `Branch`, `Author`, `Summary` — plain strings.
+- `Status`, `Branch`, `Author`, `Summary` — plain strings. `Project` is also written as
+  a plain string here, but it is a **SELECT**: its option must already exist (see 5.0).
 - `Type` — a JSON array **string**, in the user's conversation language to match the seeded
   options (the English names above are canonical); English-workspace form looks like
   `"[\"Design\", \"Implementation\"]"`.
@@ -113,12 +146,18 @@ rename, or reorder anything else (the section headings below are English canonic
 them verbatim; localize only the body prose). Do **not** add an Overview / meta table — the page properties already
 show Project / Status / Type / Date / Branch / Author at the top:
 1. a header `<callout color="blue_bg">` with the one-line summary;
-2. `## Metrics` — a `<callout color="gray_bg">` dashboard built **verbatim from
-   `extract.sh stats`** (never hand-count). One line, ` · `-separated, e.g.
-   `⏱ 79 min · 🗣 4↔38 turns · 🔧 72 tool calls · ✎ 5 files · ⌘ 12 bash` — but **no emoji**
-   (house rule): use text labels instead — `Duration 79 min · Turns 4↔38 · Tool calls 72
-   · Files 5 · Bash 12`. Always included; it makes each session scannable at a glance;
-3. `## Architecture` *(optional — only when the work has structure)* with a ```mermaid``` diagram;
+2. `## Metrics` — a `<callout color="gray_bg">` dashboard built **verbatim from `.stats`**
+   (step 3's `all` output — never hand-count). One readable line, ` · `-separated, with a clear
+   label on **every** number (no emoji — house rule) and **no cryptic `a↔b`** form. Use this
+   shape: `Duration <durationMin> min · <userTurns> prompts → <assistantTurns> Claude replies ·
+   <toolCalls> tool calls (<bashCommands> bash) · <filesEdited> files changed`, e.g.
+   `Duration 67 min · 3 prompts → 74 Claude replies · 144 tool calls (46 bash) · 20 files changed`.
+   Always included; one glance must tell the reader exactly what each number means;
+3. `## Architecture` *(optional — only when the work has real structure worth a diagram)*:
+   a **one-line caption first** saying *what the diagram shows and why it is here* (so a reader
+   never has to ask "a diagram of what?"), then a ```mermaid``` diagram. Omit the whole section
+   when there is nothing structural to show — never emit a diagram without its caption, and never
+   force one onto a session that did not build a structure;
 4. `## Decisions` as a `<table header-row="true">` with a `<tr color="blue_bg">` header
    (columns: Decision / Why / Rejected alternatives);
 5. `## Progress` as a green_bg callout (Done) + an orange_bg callout (Unfinished, `- [ ]`);
@@ -135,13 +174,17 @@ show Project / Status / Type / Date / Branch / Author at the top:
    `<details><summary>…</summary>` toggle. Write each as **symptom → root cause → fix**
    (Reflexion: a failure is first-class, recallable memory — phrase the symptom in the words
    a future search would use, so the next session surfaces it *before* repeating the
-   dead-end);
+   dead-end). **For the proactive hook to actually surface it, the symptom must also reach the
+   session's search snippet in step 9 — text living only in this page body is found only by
+   explicit /iroha:recall.**
 9. `## Details` with `<details><summary>…</summary>` toggles, in this order:
-   **Changed files** (`extract.sh files`), **Commands** (`extract.sh commands`),
-   **Tools** (`extract.sh tools` — the per-tool tally). Render the `files` / `commands` /
-   `tools` outputs as **bulleted lists** verbatim (they are already `- ` lists; never
-   join entries with `·`). The full chat does **not** go inline — it is paged out to a
-   **child page** (step 5b) and the **Full chat** toggle holds only a link to it.
+   **Changed files** (`.files`), **Commands** (`.commands`), **Tools** (`.tools` — the per-tool
+   tally), all from step 3's `all` output. Render the `files` / `commands` / `tools` arrays as
+   **bulleted lists** verbatim (they are already `- ` lines; never join entries with `·`).
+   **Do NOT add a "Full chat" toggle here.** The full chat is a child page (step 5b), and Notion
+   already lists that child page natively under the session — a toggle linking to it only makes
+   the same "Full chat" appear twice. The child page's own title carries the turn count, so it is
+   self-explanatory without a toggle.
 Wrap every file name / command / path in backticks — **including inside callouts and
 tables** — so Notion does not auto-linkify `.sh` / `.md` names as `http://…` URLs.
 Indent callout / toggle / table children with **tabs**. Keep the returned page URL.
@@ -149,24 +192,36 @@ Indent callout / toggle / table children with **tabs**. Keep the returned page U
 Set a clean monochrome page icon:
 `icon: "https://www.notion.so/icons/notebook_gray.svg"`.
 
+**Once the Session page exists, the remaining writes are independent — issue them in
+parallel.** Steps 5b (the Full-chat child), 6 (the Decisions batch), and 8 (the State page)
+each depend only on the Session page id / URL you now hold, **not on each other**. Do the cheap
+local prep first (the dedup / supersede pass for 6; write + lint the State mirror for 8), then
+send those Notion writes **in one turn (parallel tool calls)** rather than serially — the
+network-bound phase becomes one round-trip deep instead of three. Collect the returned page ids
+for the index upserts in step 9.
+
 ## 5b. Full chat as a child page (never fake it)
 
-The cleaned full chat (`extract.sh chat`) is **paged out** of the Session page to keep it
-scannable, but it must be **real and complete** — never a placeholder. After the Session
-page exists (step 5), create a child page under it: `notion-create-pages` with
-`parent: {"type":"page_id","page_id":"<session_page_id>"}`, title `Full chat`, icon
-`https://www.notion.so/icons/chat_gray.svg`, and `content` = the `extract.sh chat` output
-with **each line as its own paragraph, verbatim**. If the output is large, split it across
-**multiple `notion-create-pages` / append calls** (chunk on line boundaries, never
-mid-line) — the chat is large by nature; do **not** truncate it to fit one call. Then put a
-single link in the Session page's **Full chat** Details toggle:
-`- [Full chat (N turns)](<child_page_url>)`, where N = the line count of
-`extract.sh chat` (`bash "$E" chat "$TX" | wc -l`).
+The cleaned full chat (the `.chat` array from step 3) is **paged out** of the Session page to
+keep it scannable, but it must be **real** — never a placeholder. It is the *cleaned* chat,
+not a raw dump: **every turn is present** (none dropped), but each turn is **capped per-turn**
+(`extract.sh` truncates a long turn to ~600 chars with a `… (truncated)` marker — this is by
+design, so do not claim it is "verbatim/unbounded"). After the Session page exists (step 5),
+create a child page under it: `notion-create-pages` with
+`parent: {"type":"page_id","page_id":"<session_page_id>"}`, title **`Full chat — N turns`**
+(N = the number of `.chat` lines, its array length — putting the count in the title makes the
+natively-listed child page self-explanatory, so no Details toggle is needed), icon
+`https://www.notion.so/icons/chat_gray.svg`, and `content` = the `.chat` lines, **each line as
+its own paragraph, exactly as emitted**. If `.chat` is large, split it across **multiple
+`notion-create-pages` / append calls** (chunk on line boundaries, never mid-line) — the chat is
+large by nature; do **not** drop turns to fit one call. Do **not** also add a "Full chat" toggle
+under `## Details` (step 5, item 9): Notion already shows this child page under the session, so a
+toggle would duplicate it.
 
 **Anti-fabrication (hard rule).** Never write a sentence that *describes* the chat in place
 of the chat (e.g. "the formatted full chat continues below…"), never claim a turn count you
 did not embed, and never paste a 2-turn excerpt under a "full chat" heading. Either the real
-content is in the child page, or the chat was genuinely empty and the toggle says so with a
+content is in the child page, or the chat was genuinely empty and the child page says so with a
 short `(no content)` note (in the user's language). The Full chat is the audit trail that
 proves the curated Highlights were not
 invented — a **fabricated audit trail is worse than none**, and contradicts the project's
@@ -179,14 +234,29 @@ shape the project belong in the Decisions DB. Keep display / naming / wording tw
 the Session's Decisions table — do **not** promote them, so recall's signal-to-noise stays
 high. A decision to NOT do something still counts.
 
-For each decision, `notion-create-pages` under `decisions_ds_id`. `Name` = a short
-**`<topic>: <choice>`** title (≤24 chars, no parenthetical) — e.g. `Notion: MCP only`,
-`Link: URL not relation`. Keep the *why* in `Rationale` and the rejected options in
-`Alternatives`, never in the Name. Also set `Project`, `Status` = `Active`, `Tags` (JSON
-array string from architecture / dependency / process), `Session` = the Session page URL
-from step 5, `"date:Date:start"`. When this decision **replaces** an earlier one (see
-supersede, below), also set `Supersedes` = the **Notion URL of the decision it replaced**
+Each decision is a row under `decisions_ds_id`. **Run the dedup / supersede pass (below)
+for every candidate first, then create all the surviving *new* rows in ONE
+`notion-create-pages` call** — they share the same parent (`decisions_ds_id`), and the tool
+takes a `pages[]` array (≤100), so N decisions cost one round-trip, not N. (Supersede
+*updates* to old rows stay separate `notion-update-page` calls — they target different pages.)
+
+Each decision's `Name` = a short **`<topic>: <choice>`** title (≤24 chars, no parenthetical) —
+e.g. `Notion: MCP only`, `Link: URL not relation`. Keep the *why* in `Rationale` and the
+rejected options in `Alternatives`, never in the Name. Also set `Project`, `Status` = `Active`,
+`Topic` (the `<topic>` half of the Name, as a **SELECT** — see below), `Tags` (JSON array string
+from architecture / dependency / process), `Session` = the Session page URL from step 5,
+`"date:Date:start"`. When this decision **replaces** an earlier one (see supersede, below), also
+set `Supersedes` = the **Notion URL of the decision it replaced**
 (`https://www.notion.so/<bare-old-id>`) — the lineage link `/iroha:history` walks.
+
+**Ensure the `Topic` option exists (same as `Project`, 5.0).** `Topic` is a SELECT and does
+**not** auto-create options on write — a new topic 400s unless added first. Reuse the topics you
+already see in the local index (`bash "$IDX" find-topic` below lists them); if this decision's
+`<topic>` is new, `notion-update-data-source <decisions_ds_id>` `ALTER COLUMN "Topic" SET
+SELECT(<existing topics…>, '<topic>':color)` before creating the row (include existing options —
+SET replaces the list). Prefer reusing an existing topic string over coining a near-synonym, so
+the topic families stay consolidated rather than fragmenting (`リコール精度` and `リコール` should
+not both be coined for the same concept).
 
 **Dedup & supersede (use the local index for completeness).** A decision's `Name` is
 `<topic>: <choice>`, so the **topic prefix is the dedup key.** The free plan cannot
@@ -211,6 +281,11 @@ consolidation): the local BM25 search surfaces a decision that means the same th
   via `notion-update-page` (never overwrite — the change of mind is itself memory), create
   the new decision alongside it **with `Supersedes` = the old row's Notion URL** (this is the
   lineage edge `/iroha:history` follows), and **update the index for both** (below).
+  Also give the new decision a **one-line page body** making the lineage human-readable in
+  Notion (the `Supersedes` URL property renders as a bare link that hides *what* it replaced):
+  `content` = `Supersedes [<old topic>: <old choice>](<old-url>) — <one-line why it changed>`.
+  This is the only thing in the decision body; the *why* still lives in `Rationale`. Without it
+  the lineage is visible only via the `/iroha:history` CLI, never to someone reading Notion.
 - **Block granularity pollution at write time.** If the candidate is a display / naming /
   wording tweak rather than an architecture / dependency / process choice, do **not** create
   a Decisions row — keep it in the Session's Decisions table. This is the guard that keeps
@@ -281,11 +356,20 @@ while the mirror was fine. The rule below makes that impossible.)
 These four sections, in order, **every save** (the `##` section headings stay **English
 canonical** — they are structural and `state-lint` / `audit` rely on them; the body lines are
 in the user's conversation language):
-1. a one-line **summary + date** — `**Latest (YYYY-MM-DD):** <one sentence>`;
+1. a one-line **summary + date** — `**Latest (YYYY-MM-DD):** <one sentence>`. Write this opening
+   sentence in **plain language a newcomer understands** — no `BM25 / rerank / veto / abstention /
+   N=1`-style jargon in the first line (details can follow it). It is the first thing SessionStart
+   injects and the first thing a teammate reads. Any number in it must be **point-in-time**
+   (`Recall@3 86% as of <date>`), never a bare "current X%" that silently goes stale — the live
+   metrics live here and in `architecture.md`, and a Decision must not carry a competing "current"
+   figure (decisions are immutable history; quote a dated point-in-time value there);
 2. `## Recent sessions` — the last few Session pages, newest first, as Markdown links:
    `- [YYYY-MM-DD — <topic>](<session_url>)`;
 3. `## Unfinished / Next` — carried-over open items as a GFM checklist (`- [ ] …`);
-4. `## Decisions` — one link to the Decisions DB (canonical "why" lives there).
+4. `## Decisions` — one link to the Decisions DB (the **`Active` view**, where canonical "why"
+   lives) and one link to this project's **Projects row** (its stack profile), so State and
+   Projects are mutually reachable (the Projects row links back to State via `/iroha:project`).
+   If no Projects row exists yet, omit that link and suggest the user run `/iroha:project`.
 
 Write **real newlines / tabs**, never the two-character sequences `\n` / `\t` (they leak into
 Notion as literal `nt`/`n`). Wrap any file/command/path in backticks so Notion does not
@@ -296,6 +380,14 @@ graveyard): for each item carried from the prior State, decide done / still-acti
 stale-drop — keep only what is genuinely still pending, and mark anything carried for
 **2+ sessions** with a `[carried Nx]` tag (translated to the user's language). State is
 fully replaced each save, so this triage cannot drift.
+
+**Carried 3+ times → force a keep/drop decision (signal hygiene).** SessionStart injects this
+list every session, so a graveyard item (e.g. a low-value cosmetic chore that has ridden along
+`[carried 7x]`) actively *dilutes* the one or two items that matter. For anything at 3x or more,
+do not just bump the counter: either **drop it** (be honest that it is not going to happen — a
+dropped item is not lost, the Session that raised it still records it), or, if it is genuinely
+important but stalled, keep it but say in one clause *why it is still blocked*. The injected
+Unfinished should read as "the few things that actually matter next", never as a backlog dump.
 
 **Write it — mirror first, then Notion verbatim from the mirror:**
 ```bash
@@ -312,9 +404,13 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$MD"
 ```
 Then publish the **exact same text** (the file you just wrote) to Notion — same headings,
 same links, same lines; do not re-summarize or re-format it:
-- If get-state is empty: `notion-create-pages` under `container_page_id`
-  (title `State — <project>`, icon `https://www.notion.so/icons/target_gray.svg`),
-  `content` = the mirror's content; then `bash …/config.sh set-state "$PROJ" "<page_id>"`.
+- If get-state is empty: `notion-create-pages` under the **`States` folder**
+  (`bash …/config.sh get states_folder_id`; fall back to `container_page_id` only if a
+  pre-folder workspace returns empty) — title `State — <project>`, icon
+  `https://www.notion.so/icons/target_gray.svg`, `content` = the mirror's content; then
+  `bash …/config.sh set-state "$PROJ" "<page_id>"`. Keeping every project's State under the one
+  `States` folder is what stops the container root from filling with one flat State page per
+  project.
 - Else: `notion-update-page` `replace_content` on that page id, `content` = the mirror's
   content.
 
@@ -330,9 +426,15 @@ the keys-only index (complete enumeration).
 SAVED="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" saved-dir)"
 mkdir -p "$SAVED" && : > "$SAVED/${CLAUDE_SESSION_ID}"
 # index the Session row too, so audit/recall can enumerate sessions completely and the local
-# BM25 recall can surface "we built something like this before" (9th arg = the Summary snippet):
+# BM25 recall can surface "we built something like this before" (9th arg = the Summary snippet).
+# **Reflexion (make a failure recallable, not just stored).** If this session recorded a notable
+# Failure (§ Failures) — a dead-end a future session should avoid repeating — fold its *symptom
+# keywords* into this snippet, not only the wins. The snippet is the ONLY failure text the
+# always-on local recall can match; a symptom written solely in the Session page body is
+# reachable only by explicit /iroha:recall (semantic), so the proactive hook would never warn
+# "you hit this before". This is what completes the Reflexion loop the § Failures wording promises.
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh" upsert "$PWD" session \
-  "<session_page_id>" "" "<Status>" "<YYYY-MM-DD>" "<Name>" "<Project>" "<Summary snippet ≤160 chars>"
+  "<session_page_id>" "" "<Status>" "<YYYY-MM-DD>" "<Name>" "<Project>" "<Summary+failure-symptom snippet ≤160 chars>"
 ```
 
 **Verify the index before declaring done (root-cause guard for index drift).** A forgotten
@@ -352,10 +454,19 @@ If anything is missing or `integrity.sh` prints an issue, fix it (upsert the row
 mirror) and re-check until clean — do **not** finish on a drifted substrate.
 
 Report the Session page URL, how many decisions were recorded, that the Project State was
-updated, and that the index verified clean. **Remind the user to commit `.iroha/state.md` and
-`.iroha/index.ndjson`** in the same commit as the code — State must only ever change through
-save-session (a hand-edit in an unrelated commit is what once left State ahead of the saved
-sessions; integrity's State↔index check now flags the worst form of that).
+updated, and that the index verified clean.
+
+**Commit `.iroha/` — but on the *first* save, let the user choose committed vs ignored.**
+The default is to **commit** `.iroha/state.md` and `.iroha/index.ndjson` in the same commit as
+the code — that is how the State mirror and enumeration index reach teammates, and State must
+only ever change through save-session (a hand-edit in an unrelated commit once left State ahead
+of the saved sessions; integrity's State↔index check now flags the worst form of that). But on
+the **first** save in a repo, `.iroha/` is freshly generated, **untracked, and not yet in
+`.gitignore`** — a blanket `git add -A` would sweep this personal memory into history, which is
+wrong for a public/OSS repo where the team may not want their working notes published. So if
+`.iroha/` is untracked and not ignored, **ask once**: commit it (shared memory, the default) or
+add `/.iroha/` to `.gitignore` (keep memory local to this machine). After that first choice the
+reminder is simply "commit `.iroha/` with the code".
 
 ## Notes
 

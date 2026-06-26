@@ -8,6 +8,8 @@
 #     "session_db_id": "...",   "session_ds_id": "...",
 #     "decisions_db_id": "...", "decisions_ds_id": "...",
 #     "projects_db_id": "...",  "projects_ds_id": "...",
+#     "states_folder_id": "...",   "digests_folder_id": "...",   # grouping pages (keep the
+#                                                                # container tidy as projects/digests grow)
 #     "state_pages": { "<project-key>": "<page_id>", ... } }
 set -u
 
@@ -83,7 +85,7 @@ iroha_config_validate() {
       issues=1
     fi
   done
-  for k in container_page_id session_db_id decisions_db_id projects_db_id; do
+  for k in container_page_id session_db_id decisions_db_id projects_db_id states_folder_id digests_folder_id; do
     v="$(jq -r --arg k "$k" '.[$k] // ""' "$f")"
     [ -z "$v" ] && continue
     if ! printf '%s' "$v" | tr -d '-' | grep -qiE '^[0-9a-f]{32}$'; then

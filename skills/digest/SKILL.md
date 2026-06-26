@@ -19,6 +19,7 @@ L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
 bash "$L" get session_ds_id      # empty -> tell the user to run /iroha:init, then stop
 bash "$L" get decisions_ds_id
 bash "$L" get container_page_id
+bash "$L" get digests_folder_id  # the Digests grouping page (fall back to container if empty)
 ```
 
 ## 2. Resolve the period
@@ -63,22 +64,26 @@ Sections, in this order:
 4. `## Sessions` — newest first, one bullet each:
    `- [YYYY-MM-DD — title](url) — Status · <one-line summary>`.
 5. `## Still open` — an `orange_bg` callout with the State's carried-over `- [ ]` items.
-6. `## Timeline` — a ```mermaid``` diagram (a simple top-down or timeline of the sessions
-   in the window, labeled by date + short topic) so the arc of the period is visual.
+6. `## Timeline` — a **one-line caption first** ("How the period progressed:" or similar, so
+   the diagram is never a context-free "what is this?"), then a ```mermaid``` diagram (a simple
+   top-down or left-right timeline of the sessions in the window, labeled by date + short topic)
+   so the arc of the period is visual.
 
 Wrap every file / command / path in backticks. Indent callout / table / toggle children
 with **tabs**.
 
 ## 5. Write the Digest page
 
-`notion-create-pages` under `container_page_id`:
+`notion-create-pages` under the **`Digests` folder** (`digests_folder_id` from step 1; fall
+back to `container_page_id` only if a pre-folder workspace returns empty):
 - `properties`: `{ "title": "Digest START..END" }`
 - `icon`: `https://www.notion.so/icons/calendar_gray.svg`
 - `content`: the markdown from step 4.
 
 Digests are disposable rollups, not a source of truth — they link back to the canonical
-Sessions / Decisions. Do not create a database for them; a page under the container is
-enough. If a digest for the exact same window already exists, `notion-update-page`
+Sessions / Decisions. Do not create a database for them; a page under the `Digests` folder is
+enough (grouping them there keeps the container root from filling with one flat digest page per
+run). If a digest for the exact same window already exists, `notion-update-page`
 `replace_content` it instead of making a duplicate.
 
 ## 6. Report

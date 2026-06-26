@@ -4,8 +4,12 @@
 # noise-free, deterministic views for /iroha:save-session. Read-only.
 # stdout = the requested view only; diagnostics go to stderr.
 #
-# Usage: extract.sh <files|commands|meta|prompts|stats|tools|chat> <transcript.jsonl>
+# Usage: extract.sh <files|commands|meta|prompts|stats|tools|chat|all> <transcript.jsonl>
 #
+#   all       every view in ONE JSON object {meta, stats, files, commands, prompts, tools,
+#             chat}, parsing the (large) transcript ONCE instead of re-reading it per view —
+#             this is what /save-session calls (7 round-trips + 7 re-parses -> 1). The list
+#             views are arrays of the same formatted lines the individual subcommands emit.
 #   files     unique files touched via Edit/Write/MultiEdit/NotebookEdit
 #   commands  unique Bash commands (first line of each)
 #   meta      JSON {title, started, ended, cwd, gitBranch, model, sessionId}
@@ -30,7 +34,7 @@ cmd="${1:-}"
 file="${2:-}"
 
 if [ -z "$cmd" ] || [ -z "$file" ]; then
-  echo "usage: extract.sh <files|commands|meta|prompts|stats|tools|chat> <transcript.jsonl>" >&2
+  echo "usage: extract.sh <files|commands|meta|prompts|stats|tools|chat|all> <transcript.jsonl>" >&2
   exit 2
 fi
 if [ ! -f "$file" ]; then
@@ -134,6 +138,72 @@ case "$cmd" in
         | ($t | if length > 600 then .[0:600] + " … (truncated)" else . end) as $c
         | "**" + .role + "** " + $c
       ] | .[]
+    '
+    ;;
+  all)
+    # Every view in one object, parsing the file ONCE (records = one pass) -> one jq -s.
+    # The sub-filters are identical to the individual cases above; list views become arrays.
+    records | jq -s '
+      def realuser: select(.isSidechain != true) | select(.type == "user")
+        | select(.isMeta != true)
+        | select(.message.content | type == "string")
+        | select(.message.content | test("^\\s*<(command-message|command-name|task-notification|system-reminder|local-command-stdout|local-command-caveat|bash-input|bash-stdout|user-prompt-submit-hook)") | not);
+      def asof: .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601;
+      (map(select(.timestamp)) | sort_by(.timestamp)) as $t
+      | {
+          meta: {
+            title: ((map(select(.type == "ai-title")) | last | .aiTitle) //
+                    ((map(select(.type == "user" and (.message.content | type == "string"))) | first | .message.content) // "Untitled session")),
+            started: ($t | first | .timestamp),
+            ended:   ($t | last | .timestamp),
+            cwd:     (map(select(.cwd)) | last | .cwd),
+            gitBranch: ([ .[] | .gitBranch // empty ] | last),
+            model:     ([ .[] | select(.type == "assistant") | .message.model // empty ] | last),
+            sessionId: ([ .[] | .sessionId // empty ] | last)
+          },
+          stats: {
+            userTurns:      ([ .[] | realuser ] | length),
+            assistantTurns: ([ .[] | select(.isSidechain != true) | select(.type == "assistant") | select(any(.message.content[]?; .type == "text")) ] | length),
+            toolCalls:      ([ .[] | select(.isSidechain != true) | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use") ] | length),
+            filesEdited:    ([ .[] | select(.isSidechain != true) | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use") | select(.name | test("^(Edit|Write|MultiEdit|NotebookEdit)$")) | (.input.file_path // .input.notebook_path // empty) ] | unique | length),
+            bashCommands:   ([ .[] | select(.isSidechain != true) | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use") | select(.name == "Bash") ] | length),
+            startedAt:      ($t | first | .timestamp),
+            endedAt:        ($t | last | .timestamp),
+            durationMin:    (if ($t | length) > 1 then ((($t | last | asof) - ($t | first | asof)) / 60 | floor) else 0 end)
+          },
+          files: ([ .[] | select(.isSidechain != true) | select(.type == "assistant")
+                    | .message.content[]? | select(.type == "tool_use")
+                    | select(.name | test("^(Edit|Write|MultiEdit|NotebookEdit)$"))
+                    | { verb: (if .name == "Write" then "write" else "edit" end),
+                        path: (.input.file_path // .input.notebook_path // empty) }
+                    | select(.path != null) ] | unique_by(.path)
+                  | map("- `" + .path + "` (" + .verb + ")")),
+          commands: ([ .[] | select(.isSidechain != true) | select(.type == "assistant")
+                       | .message.content[]? | select(.type == "tool_use") | select(.name == "Bash")
+                       | (.input.command // empty) | select(. != null) | split("\n")[0] ] | unique
+                     | map("- `" + . + "`")),
+          prompts: ([ .[] | select(.isSidechain != true) | select(.type == "user")
+                      | select(.isMeta != true)
+                      | select(.message.content | type == "string") | .message.content
+                      | select(test("^\\s*<(command-message|command-name|task-notification|system-reminder|local-command-stdout|local-command-caveat|bash-input|bash-stdout|user-prompt-submit-hook)") | not)
+                      | gsub("\\s+"; " ") | gsub("^ +| +$"; "")
+                      | select(. != "") | .[0:200] ] | map("- " + .)),
+          tools: ([ .[] | select(.isSidechain != true) | select(.type == "assistant")
+                    | .message.content[]? | select(.type == "tool_use") | .name ]
+                  | group_by(.) | map({name: .[0], n: length}) | sort_by(-.n)
+                  | map("- `" + .name + "` ×" + (.n | tostring))),
+          chat: [ .[] | select(.isSidechain != true)
+                  | if (.type == "user" and (.isMeta != true) and (.message.content | type == "string")
+                        and (.message.content | test("^\\s*<(command-message|command-name|task-notification|system-reminder|local-command-stdout|local-command-caveat|bash-input|bash-stdout|user-prompt-submit-hook)") | not))
+                    then { role: "You", text: .message.content }
+                    elif (.type == "assistant")
+                    then (.message.content[]? | select(.type == "text") | { role: "Claude", text: .text })
+                    else empty end
+                  | (.text | gsub("\\s+"; " ") | gsub("^ +| +$"; "")) as $c0
+                  | select($c0 != "")
+                  | ($c0 | if length > 600 then .[0:600] + " … (truncated)" else . end) as $c
+                  | "**" + .role + "** " + $c ]
+        }
     '
     ;;
   *)

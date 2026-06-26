@@ -88,6 +88,17 @@ hasnt chat-no-sidechain "SIDECHAIN" "$chat"
 hasnt chat-no-caveat "NOISE-CAVEAT" "$chat"
 hasnt chat-no-ismeta "NOISE-ISMETA" "$chat"   # harness meta turn (isMeta) excluded from the chat too
 
+echo "=== extract all (one-pass aggregate — must equal the individual views, no drift) ==="
+all=$(bash "$EXTRACT" all "$FIX")
+eq all-valid-json "ok" "$(printf '%s' "$all" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
+eq all-meta-eq     "$(bash "$EXTRACT" meta "$FIX" | jq -S .)"  "$(printf '%s' "$all" | jq -S .meta)"
+eq all-stats-eq    "$(bash "$EXTRACT" stats "$FIX" | jq -S .)" "$(printf '%s' "$all" | jq -S .stats)"
+eq all-files-eq    "$(bash "$EXTRACT" files "$FIX")"    "$(printf '%s' "$all" | jq -r '.files[]')"
+eq all-commands-eq "$(bash "$EXTRACT" commands "$FIX")" "$(printf '%s' "$all" | jq -r '.commands[]')"
+eq all-prompts-eq  "$(bash "$EXTRACT" prompts "$FIX")"  "$(printf '%s' "$all" | jq -r '.prompts[]')"
+eq all-tools-eq    "$(bash "$EXTRACT" tools "$FIX")"    "$(printf '%s' "$all" | jq -r '.tools[]')"
+eq all-chat-eq     "$(bash "$EXTRACT" chat "$FIX")"     "$(printf '%s' "$all" | jq -r '.chat[]')"
+
 echo "=== extract tolerates truncated / malformed lines ==="
 BROKEN=$(mktemp "${TMPDIR:-/tmp}/iroha-broken.XXXXXX")
 cat "$FIX" >"$BROKEN"
@@ -137,6 +148,11 @@ has config-validate-names-bad-key "decisions_ds_id" "$(IROHA_CONFIG_DIR="$CFGV" 
 IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
 IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_db_id "not-32-hex" >/dev/null
 eq config-validate-bad-dbid-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+# a malformed grouping-folder id is caught too (same 32-hex page-id class as container / db ids).
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_db_id "c58dc1018eb54393bc67bd1a6fec6551" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set states_folder_id "STATES" >/dev/null
+eq config-validate-bad-folder-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+has config-validate-folder-named "states_folder_id" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate 2>&1)"
 # a fresh, un-initialized config (no ids yet) has nothing to check -> clean (a new install never false-fails).
 CFGV2="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfgv2.XXXXXX")"
 eq config-validate-fresh-clean "0" "$(IROHA_CONFIG_DIR="$CFGV2" bash "$CV" validate >/dev/null 2>&1; echo $?)"

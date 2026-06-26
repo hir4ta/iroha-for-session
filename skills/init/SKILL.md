@@ -33,15 +33,20 @@ API token.
    confirm access and get the bare page id (32-hex).
 
 4. **Reuse if present (team-join).** If the fetched page already contains `Sessions`,
-   `Decisions`, and `Projects` databases, capture their data source ids (step 7) and
-   stop — this is how a teammate joins a shared workspace without creating duplicates.
+   `Decisions`, and `Projects` databases, capture their data source ids (step 7), also
+   capture the `States` / `Digests` grouping pages (create them per step 5 if this older
+   workspace lacks them, moving any existing State / Digest pages under them), and stop —
+   this is how a teammate joins a shared workspace without creating duplicates.
 
 5. **Create the three databases** directly under that page with `notion-create-database`,
    which takes **SQL DDL** (`CREATE TABLE`). Do NOT use `RELATION` columns (the MCP
    relation write path is buggy); link records with a `URL` column instead. Replace
    `iroha-for-notion` in the `Project` option with the current project name
-   (basename of the user's cwd). Notion auto-creates select options on write, so the
-   seeded options are just starting values.
+   (basename of the user's cwd). **Note:** `notion-create-pages` does **not**
+   auto-create a missing `SELECT` option — writing an unseeded `Project` value returns a
+   400. Adding a *second* project later is handled by `save-session` (it ALTERs the
+   option in on that project's first save — see save-session 5.0); the value seeded here
+   is just the starting one.
 
    **Localize to the user's conversation language.** The DDL below is the canonical
    **English template**. When you actually issue it, translate the human-facing **`Type`**
@@ -64,7 +69,15 @@ API token.
 
    ```
    parent: {"type":"page_id","page_id":"<PAGE_ID>"}   title: "Decisions"
-   schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-notion':blue), "Status" SELECT('Active':green, 'Superseded':gray), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Date" DATE)
+   schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-notion':blue), "Topic" SELECT('general':gray), "Status" SELECT('Active':green, 'Superseded':gray), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Supersedes" URL, "Date" DATE)
+
+   `Topic` is a first-class **SELECT** (the `<topic>` half of the `<topic>: <choice>` Name):
+   it makes the decision's topic a real, filterable/groupable property instead of a string
+   parsed out of the title, so supersede-grouping is robust and a teammate can browse decisions
+   by topic. Like `Project` it does **not** auto-create options on write — `save-session`
+   ALTERs a new topic's option in on first use (see save-session 5.0 / 6). `Supersedes` (URL) is
+   the lineage edge to the decision this one replaced (relation-free, same URL-linking as
+   `Session`); it is required for `/iroha:history` and the `integrity` lineage check.
    ```
 
    Projects (one row per project — the cross-project architecture layer for catch-up
@@ -77,6 +90,17 @@ API token.
    Only `Languages` is multi_select (finite, filterable); Frameworks / DevTools / CI are
    rich_text (libraries are too many / too varied for select — let `notion-search` find
    them in the text).
+
+   **Then create two grouping pages directly under the container — `States` and `Digests`.**
+   These keep the container tidy as it grows: per-project State pages live under `States`,
+   digest pages under `Digests`, so the container root stays just *guide + the 3 DBs + these 2
+   folders* no matter how many projects join or digests run (without them, every project's State
+   and every digest pile up as flat container children). Create each as a plain page with a
+   short purpose callout and a folder-ish icon
+   (`https://www.notion.so/icons/folder_gray.svg`); capture the two page ids. **On reuse /
+   team-join (step 4), find the existing `States` / `Digests` pages by title instead of
+   creating duplicates — and if an older workspace lacks them, create them now and move any
+   existing State / Digest pages under them.**
 
 6. **Read the data source ids from each result.** `notion-create-database` returns a
    `<data-source url="collection://<DS_ID>">` tag. Rows are created under the **data
@@ -93,6 +117,8 @@ API token.
    bash "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
    bash "$L" set projects_db_id  "<PROJECTS_DATABASE_ID>"
    bash "$L" set projects_ds_id  "<PROJECTS_DATA_SOURCE_ID>"
+   bash "$L" set states_folder_id  "<STATES_PAGE_ID>"     # grouping pages from step 5 — keep
+   bash "$L" set digests_folder_id "<DIGESTS_PAGE_ID>"    # the container tidy as it grows
    bash "$L" set recall_enabled  true   # arm enforced JIT recall (the UserPromptSubmit hook
                                         # stays idle until this is true — so a fresh install
                                         # that never ran init costs nothing per prompt)
@@ -107,18 +133,32 @@ API token.
    - `notion-create-view` type `board`, `GROUP BY "Status" SORT BY "Date" ASC` (secondary).
    On the **Decisions** database:
    - `notion-create-view` type `table` named **`Active`**, `FILTER "Status" = 'Active'`
-     so superseded / reverted decisions do not clutter "what did we decide?".
+     so superseded / reverted decisions do not clutter "what did we decide?". Make this the
+     **primary** Decisions view (the entry-guide callout points here).
+   - `notion-create-view` type `board` named **`By Topic`**, `GROUP BY "Topic" FILTER "Status"
+     = 'Active'` so a teammate can see the decision families at a glance and spot topic
+     fragmentation (the dispersion that title-prefix parsing hid).
    On the **Projects** database:
    - `notion-create-view` type `board` named **`By Language`**, `GROUP BY "Languages"
      SORT BY "Updated" DESC` so a teammate can browse "all our Go / Python projects".
 
 9. **Add an entry-point guide to the parent page.** `notion-update-page`
-   `insert_content` at `{"type":"start"}` a one-line `<callout color="gray_bg">`: how to
-   navigate (progress → State / past decisions → Decisions / each run → Sessions
-   `Recent`) and the naming conventions — sessions `YYYY-MM-DD — <topic>`, decisions
-   `<topic>: <choice>`. This hands a teammate the whole map in one glance. Write the guide
-   text in the user's conversation language (the English here is the canonical template; the
-   prose a teammate reads should be localized).
+   `insert_content` at `{"type":"start"}` a `<callout color="gray_bg">` that hands a teammate
+   the whole map in one glance. It must:
+   - **link, not just name, the State page** for this project (under the `States` folder) — the
+     single most-wanted page ("what's the current state?") is otherwise 2 clicks deep and a
+     first-timer cannot find it. Use a real Markdown link to the State page id.
+   - point "past decisions" at the Decisions **`Active` view** by name (matching how Sessions
+     names `Recent` and Projects names `By Language`), so a click lands on the curated view, not
+     the all-rows default.
+   - state the navigation (progress → State / past decisions → Decisions `Active` / each run →
+     Sessions `Recent` / stacks → Projects `By Language`) and the naming conventions (sessions
+     `YYYY-MM-DD — <topic>`, decisions `<topic>: <choice>`).
+   - end with one line that this workspace is **generated by the iroha skills — don't hand-edit
+     rows**: record with `/iroha:save-session`, search with `/iroha:recall`, refresh stacks with
+     `/iroha:project`.
+   Write the guide text in the user's conversation language (the English here is the canonical
+   template; the prose a teammate reads should be localized).
 
 10. **Confirm** with links to both databases and tell the user they can now run
     `/iroha:save-session`. Mention that **enforced just-in-time recall is now on**: each

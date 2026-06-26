@@ -18,6 +18,7 @@ materially. Write Notion content in the user's conversation language.
 L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
 bash "$L" get projects_ds_id      # empty -> tell the user to run /iroha:init, then stop
 bash "$L" get container_page_id
+bash "$L" get-state "$PWD"        # this project's State page id (link to it from the row, below)
 ```
 
 ## 2. Scan the repo and draft the profile (read the real stack, do not guess)
@@ -52,6 +53,13 @@ header `<callout>` summary, a stack `<table>`, a ```mermaid``` architecture diag
 `## Setup` `<details>` toggle, and key conventions. **State _what_, not _why_** — for
 the rationale, link to the Decisions DB; never re-explain decisions here. Icon
 `https://www.notion.so/icons/cube_gray.svg`.
+
+**Link to the project's current State** in the header callout: `現在地: [State — <project>]
+(<state_page_url>)` (using the state page id from step 1; omit if none yet). This is the
+Projects↔State mutual link — Projects holds the *durable stack* and links to State's *live
+status*, while State links back here for the stack. They stay **separate** pages on purpose
+(this profile is manual / engineer-judged; State is rewritten every `/iroha:save-session`), so
+do not merge them — just connect them.
 
 **Wrap every file name / command / path in backticks — including inside `<table>` cells,
 callouts, and the `CI` / `DevTools` / `Frameworks` properties** — so Notion does not
