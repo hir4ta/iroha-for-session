@@ -119,6 +119,29 @@ iroha_config_set session_db_id "DB2"
 eq config-self-heal-set "DB2" "$(iroha_config_get session_db_id)"
 rm -rf "$IROHA_CONFIG_DIR"
 
+echo "=== config validate (id shape: catch placeholder/truncated ids like the DSID class) ==="
+# Well-formed ids (UUID data-source ids + 32-hex db ids) pass; a non-empty but MALFORMED id fails
+# loudly. This is the guard whose absence let "decisions_ds_id=DSID" silently break /recall +
+# decision saves while every non-empty check still passed. Isolated config dir per case.
+CFGV="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfgv.XXXXXX")"
+CV="$HERE/../scripts/_lib/config.sh"
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_ds_id   "6b5fc3c8-de78-4c5f-afc6-2e1e226f9378" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_db_id "128c8c81e60d4443a82cabfd84eb243f" >/dev/null
+eq config-validate-clean "0" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+# the exact dogfood defect: a placeholder data-source id must fail, naming the offending key.
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "DSID" >/dev/null
+eq config-validate-placeholder-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+has config-validate-names-bad-key "decisions_ds_id" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate 2>&1)"
+# a malformed (non-32-hex) database id is caught too.
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_db_id "not-32-hex" >/dev/null
+eq config-validate-bad-dbid-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+# a fresh, un-initialized config (no ids yet) has nothing to check -> clean (a new install never false-fails).
+CFGV2="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfgv2.XXXXXX")"
+eq config-validate-fresh-clean "0" "$(IROHA_CONFIG_DIR="$CFGV2" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+rm -rf "$CFGV" "$CFGV2"
+
 echo "=== transcript-path (deterministic locate; bounded find fallback; never globs) ==="
 TPHOME=$(mktemp -d "${TMPDIR:-/tmp}/iroha-tp.XXXXXX")
 TPROOT="/Users/demo/Projects/app"

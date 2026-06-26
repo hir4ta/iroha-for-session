@@ -64,6 +64,36 @@ iroha_config_set_state_page() {
   jq --arg p "$1" --arg id "$2" '.state_pages[$p] = $id' "$f" >"$tmp" && mv "$tmp" "$f"
 }
 
+# iroha_config_validate  -> 0 clean / 1 issues (each printed on its own line).
+# OFFLINE shape check on the stored Notion ids: a non-empty but MALFORMED id (e.g. the literal
+# "DSID" placeholder, or a truncated value) passes every "is it set / non-empty?" check yet makes
+# the canonical Notion calls fail silently — it broke /iroha:recall, /iroha:audit, and decision
+# saves (collection://DSID) while the recall hook kept working off the local index, so the fault
+# stayed invisible. This catches the whole class loudly. Empty ids are fine (a fresh, un-initialized
+# config costs nothing). The complementary network "does this id resolve?" check belongs in audit.
+iroha_config_validate() {
+  local f issues=0 v k
+  f="$(iroha_config_ensure)"
+  # Data-source ids are UUIDs (8-4-4-4-12 hex); database / page ids are bare 32-hex.
+  for k in session_ds_id decisions_ds_id projects_ds_id; do
+    v="$(jq -r --arg k "$k" '.[$k] // ""' "$f")"
+    [ -z "$v" ] && continue
+    if ! printf '%s' "$v" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+      echo "config: $k is not a valid Notion data-source id (UUID): \"$v\" — run /iroha:init to repair (a malformed id breaks /iroha:recall, /iroha:audit, and decision saves)"
+      issues=1
+    fi
+  done
+  for k in container_page_id session_db_id decisions_db_id projects_db_id; do
+    v="$(jq -r --arg k "$k" '.[$k] // ""' "$f")"
+    [ -z "$v" ] && continue
+    if ! printf '%s' "$v" | tr -d '-' | grep -qiE '^[0-9a-f]{32}$'; then
+      echo "config: $k is not a valid Notion id (32-hex): \"$v\" — run /iroha:init to repair"
+      issues=1
+    fi
+  done
+  [ "$issues" -eq 0 ]
+}
+
 # iroha_state_md_path <project-root>  -> the project's State mirror, kept IN THE REPO
 # (<root>/.iroha/state.md). Committed so a teammate who pulls it gets the latest State
 # injected by their SessionStart hook, which cannot reach Notion. Commit this file.
@@ -96,9 +126,10 @@ if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
     set) iroha_config_set "${2:-}" "${3:-}" ;;
     get-state) iroha_config_get_state_page "${2:-}" ;;
     set-state) iroha_config_set_state_page "${2:-}" "${3:-}" ;;
+    validate) iroha_config_validate ;;
     path) iroha_config_path ;;
     *)
-      echo "usage: config.sh <get|set|get-state|set-state|path> ..." >&2
+      echo "usage: config.sh <get|set|get-state|set-state|validate|path> ..." >&2
       exit 2
       ;;
   esac

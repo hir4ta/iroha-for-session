@@ -44,6 +44,19 @@ if [ "${1:-}" = "--selfcheck" ]; then
   else
     p FAIL "config initialized (run /iroha:init)"; ok=0
   fi
+  # Shape-validate the stored ids: a non-empty but MALFORMED id (a leftover "DSID" placeholder, a
+  # truncated value) passes the "initialized" check above yet silently breaks /recall, /audit, and
+  # decision saves. Make that loud here — this is the guard whose absence let "decisions_ds_id=DSID"
+  # hide while proactive recall (which reads the local index, not this id) kept working.
+  if [ -f "$L" ]; then
+    cfg_issues="$(bash "$L" validate 2>/dev/null)"
+    if [ -z "$cfg_issues" ]; then
+      p PASS "config ids well-formed"
+    else
+      p FAIL "config ids well-formed (run /iroha:init)"; ok=0
+      printf '%s\n' "$cfg_issues" | while IFS= read -r line; do printf '       %s\n' "$line"; done
+    fi
+  fi
   if [ -f "$L" ] && [ "$(bash "$L" get recall_enabled 2>/dev/null)" = "true" ]; then
     p PASS "recall_enabled=true"
   else

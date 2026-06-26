@@ -92,7 +92,11 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   deterministic offline floor (catches malformed rows, duplicate ids, duplicate Active topics, and a
   State that points at a session missing from the index):
   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.sh" "$PWD"` — treat anything it prints as
-  high-confidence. Then the Notion reconciliation the offline floor cannot do: enumerate the Decisions
+  high-confidence. **Also validate the cached ids** — a non-empty but malformed id (a leftover
+  `DSID` placeholder, a truncated value) passes every "is it set?" check yet silently breaks recall,
+  this audit, and decision saves (a real dogfood defect): `bash "$L" validate` (offline shape check),
+  then confirm each `*_ds_id` actually **resolves** by `notion-fetch`-ing `collection://<id>` —
+  flag any that 404 (config points at a deleted / wrong data source). Then the Notion reconciliation the offline floor cannot do: enumerate the Decisions
   DB as completely as the free plan allows (several broad `notion-search` passes over `decisions_ds_id`
   plus the ids the index already knows), collect the **distinct decision page ids Notion returns**, and
   diff against `index.sh list "$PWD" decision`. Flag every Notion decision id **absent from the index**
@@ -135,6 +139,8 @@ report), apply **only the safe, reversible** fixes and re-report each:
   any index row whose id 404s. Re-run `integrity.sh` and the Notion diff until they reconcile. Remind
   the user to commit `.iroha/index.ndjson`. This is the **reindex repair**; it is reversible (it only
   adds/refreshes keys — Notion stays the content source of truth) so it is safe to apply on confirmation.
+  If `config.sh validate` flagged a malformed id, repair it: re-run `/iroha:init` against the same
+  parent page (it re-reads the real ids), or set the correct id directly with `bash "$L" set <key> <id>`.
 - **C / E / F** — these need human judgment (delete? rewrite? demote?). Report them with a
   recommended action but **do not** auto-apply; ask.
 
