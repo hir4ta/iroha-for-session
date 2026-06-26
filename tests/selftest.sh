@@ -377,6 +377,31 @@ if command -v node >/dev/null 2>&1; then
   rm -rf "$RCEMPTY"
 fi
 
+# check-inject hook (PreToolUse write-time decision advisory). Same cheap-local recall as the prompt
+# hook, but triggered by a `git commit` Bash call and querying the commit subject + staged paths. Run
+# free-tier (IROHA_RERANK_DISABLE=1) for determinism without the opt-in models. RIDATA has
+# recall_enabled=true (set earlier); RIPROJ holds the one-row 連結 index.
+echo "=== check-inject hook (write-time decision advisory: gate, consent, abstain, inject) ==="
+ci() {  # ci <commit-command> <sid> [EXTRA_ENV=val ...]
+  local c="$1" s="$2"
+  shift 2
+  printf '{"tool_name":"Bash","tool_input":{"command":%s},"session_id":"%s","cwd":"%s"}' \
+    "$(printf '%s' "$c" | jq -Rs .)" "$s" "$RIPROJ" |
+    env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA" TMPDIR="$RICACHE" \
+      IROHA_RERANK_DISABLE=1 "$@" bash "$HERE/../hooks/check-inject.sh"
+}
+cp=$(ci 'git commit -m "relationで連結する設計を変更"' cci1)
+has ci-inject-content "連結: relation でなく URL" "$cp"               # the governing Active decision
+has ci-inject-shape "hookSpecificOutput" "$cp"
+eq ci-gate-non-commit "" "$(ci 'git status' cci2)"                    # only `git commit` fires
+eq ci-gate-disable "" "$(ci 'git commit -m "relationで連結"' cci3 IROHA_CHECK_DISABLE=1)"
+eq ci-cache-second-empty "" "$(ci 'git commit -m "relationで連結する設計を変更"' cci1)"  # one note per subject/session
+eq ci-abstain "" "$(ci 'git commit -m "deploy the kubernetes cluster to aws"' cci4)"  # no governing decision
+# consent gate: recall_enabled not set (RIDATA3) -> no advisory.
+eq ci-gate-consent "" "$(printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m \"relationで連結\""},"session_id":"cci5","cwd":"%s"}' "$RIPROJ" |
+  env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA3" TMPDIR="$RICACHE" IROHA_RERANK_DISABLE=1 \
+    bash "$HERE/../hooks/check-inject.sh")"
+
 rm -rf "$RIDATA" "$RIDATA2" "$RIDATA3" "$RIPROJ" "$RICACHE"
 
 echo "=== state-lint (State body validator: escapes, missing sections, summary, real mirror) ==="

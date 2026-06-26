@@ -46,6 +46,11 @@ changed, and why.
   Claude proactively tells you where you left off and what's unfinished. After `/compact`
   or auto-compact it also **re-injects the current session's own thread** (your prompts +
   a capped recent tail), so the conversation survives compaction.
+- A **write-time** check (a `PreToolUse` hook on `git commit`) runs the same cheap local
+  recall over the commit subject + staged paths and, if **Active decisions** govern that
+  area, adds an advisory to verify you are not silently reversing one (and to run
+  `/iroha:check`). It is purely advisory — it **never blocks or auto-approves** the commit —
+  and catches a course-reversal at the last moment before code lands.
 - Each saved session also carries a **metrics dashboard** (turns, tool calls, files,
   duration) and a collapsed **full-chat audit trail**. `/iroha:digest` rolls a week or
   month into one page; `/iroha:audit` keeps the growing memory clean (duplicate

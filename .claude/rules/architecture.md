@@ -67,6 +67,13 @@
 - **保存はリマインド・recall は proactive (ローカル)**。保存強制はしない (Stop の exit 2 ブロックは
   使わずユーザーを閉じ込めない)；保存忘れは SessionStart で注意喚起。一方 recall は **UserPromptSubmit
   のローカル注入** (`recall-inject.sh` が `search.sh` の BM25 を回し関連決定を proactively 注入)。
+  加えて **write-time の自発チェック**: `check-inject.sh` (PreToolUse, `if: Bash(git commit *)`) が
+  commit 直前にコミット subject＋ステージ paths で同じローカル recall を回し、その領域を支配する
+  **Active 決定**を advisory 注入する (「reverse していないか /iroha:check で確認を」)。**ブロックしない**
+  (`additionalContext` のみ・`permissionDecision` 無し＝exit 0 で通常の許可フロー維持、commit を自動
+  承認しない)。prompt-time recall が発火しなかった/忘れた変更を、コードが landing する最後の関所で拾う。
+  ゲートは recall-inject と同形 (`IROHA_CHECK_DISABLE=1`・consent・abstain・subject 毎 session cache)。
+  判断 (本当に矛盾か) は LLM の仕事＝hook はしない (LLM-in-hook 反パターンを踏まない)。
   毎プロンプト headless `claude -p` を起動する旧設計は撤廃 (SOTA に無い反パターン＝コスト/遅延/レート
   競合、`claude`/`timeout` 依存、非ユーザー turn での誤発火があった)。新設計は LLM もネットワークも呼ばず
   即時・オフライン。fail-safe は維持: `IROHA_RECALL_DISABLE=1` で停止、`recall_enabled`(init で arm)未設定や
