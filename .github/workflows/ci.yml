@@ -10,12 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # full history so gitleaks scans every commit, not just the tip
 
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
       - name: Install dev deps
         run: npm install
@@ -26,16 +28,17 @@ jobs:
       - name: Shellcheck
         run: find scripts hooks tests -name '*.sh' -print0 | xargs -0 shellcheck
 
-      # Secret + typo scans — mirror the pre-commit hooks so a contributor without the
-      # pre-push hook installed cannot land a secret or typo on a green CI (the gap that
-      # let CI pass while pre-commit ⊋ CI). Same tool versions as .pre-commit-config.yaml.
+      # Secret + typo scans — run them THROUGH pre-commit (not the standalone marketplace actions)
+      # so CI uses the EXACT same hooks, pinned versions, and .gitignore / _typos.toml handling as a
+      # developer's local `pre-commit run`. The standalone crate-ci/typos action diverged — it
+      # scanned gitignored node_modules (present after `npm install`) and failed on a vendored
+      # "Hashi" in @types/node, which local pre-commit correctly skips. pre-commit guarantees CI==local.
+      - name: Install pre-commit
+        run: pip install pre-commit
       - name: Secret scan (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+        run: pre-commit run gitleaks --all-files
       - name: Typo scan (typos)
-        uses: crate-ci/typos@v1.46.0
+        run: pre-commit run typos --all-files
 
       - name: Behavioral selftest
         run: npm run test:bash
