@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { configGet } from "../scripts/_lib/config.ts";
 import { recallLocal } from "../scripts/_lib/recall.ts";
 
-function run(): number {
+async function run(): Promise<number> {
   // 1. Off-switch.
   if (process.env.IROHA_CHECK_DISABLE) return 0;
 
@@ -89,10 +89,8 @@ function run(): number {
   writeFileSync(marker, "");
 
   // 6. Cheap local recall; keep only ACTIVE decisions (a Superseded one is not a rule you can violate).
-  const hits = recallLocal(
-    root,
-    query,
-    Number(process.env.IROHA_CHECK_TOPN ?? "3"),
+  const hits = (
+    await recallLocal(root, query, Number(process.env.IROHA_CHECK_TOPN ?? "3"))
   ).filter((h) => h.type === "decision" && h.status === "Active");
   if (hits.length === 0) return 0;
 
@@ -108,4 +106,4 @@ function run(): number {
   return 0;
 }
 
-process.exit(run());
+process.exit(await run());

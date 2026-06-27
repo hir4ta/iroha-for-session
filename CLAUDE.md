@@ -29,7 +29,8 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
   typos + gitleaks (pre-commit)。
 - 知性 (要約・決定抽出・Type 分類) は `/save-session` スキル内で **Claude 本体**が担う。
 - recall は 2 tier: FREE = 自前 BM25 (`scripts/_lib/search.ts`・無依存・既定)、HEAVY = opt-in の
-  dense + cross-encoder rerank (`scripts/embed.mjs` / `scripts/rerank.mjs`, transformers.js)。
+  dense + cross-encoder rerank (`scripts/embed.ts` / `scripts/rerank.ts`, transformers.js を Bun で
+  in-process 実行＝node subprocess なし)。
 
 ## 言語境界
 

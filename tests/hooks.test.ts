@@ -12,9 +12,8 @@ const SS = join(ROOT, "hooks/session-start.ts");
 const RI = join(ROOT, "hooks/recall-inject.ts");
 const CI = join(ROOT, "hooks/check-inject.ts");
 const RECALL = join(ROOT, "scripts/_lib/recall.ts");
-const EMBED = join(ROOT, "scripts/embed.mjs");
-const RERANK = join(ROOT, "scripts/rerank.mjs");
-const NODE = Bun.which("node") !== null;
+const EMBED = join(ROOT, "scripts/embed.ts");
+const RERANK = join(ROOT, "scripts/rerank.ts");
 
 type Run = { out: string; err: string; code: number };
 function run(
@@ -214,14 +213,14 @@ test("recall-inject — selfcheck (offline readiness probe)", () => {
   expect(sc2.out).toContain("READY");
 });
 
-// ── opt-in model gates (node + the .mjs contract; graceful fallback to BM25) ──────────────────────
-test.skipIf(!NODE)("rerank gate — contract paths + BM25 fallback", () => {
+// ── opt-in model gates (bun + the .ts contract; graceful fallback to BM25) ────────────────────────
+test("rerank gate — contract paths + BM25 fallback", () => {
   expect(
-    run(["node", RERANK], { input: '{"query":"x","docs":[]}' }).out.trim(),
+    run(["bun", RERANK], { input: '{"query":"x","docs":[]}' }).out.trim(),
   ).toBe("[]");
-  expect(run(["node", RERANK], { input: "not-json" }).code).toBe(2);
+  expect(run(["bun", RERANK], { input: "not-json" }).code).toBe(2);
   expect(
-    run(["node", RERANK], {
+    run(["bun", RERANK], {
       input: '{"query":"x","docs":[{"id":"a","text":"b"}]}',
       env: { IROHA_MODEL_DIR: mktmp() },
     }).code,
@@ -236,13 +235,13 @@ test.skipIf(!NODE)("rerank gate — contract paths + BM25 fallback", () => {
     ).out,
   ).toContain("連結: relation でなく URL");
 });
-test.skipIf(!NODE)("embed gate — contract paths", () => {
+test("embed gate — contract paths", () => {
   expect(
-    run(["node", EMBED], { input: '{"query":"x","docs":[]}' }).out.trim(),
+    run(["bun", EMBED], { input: '{"query":"x","docs":[]}' }).out.trim(),
   ).toBe("[]");
-  expect(run(["node", EMBED], { input: "not-json" }).code).toBe(2);
+  expect(run(["bun", EMBED], { input: "not-json" }).code).toBe(2);
   expect(
-    run(["node", EMBED], {
+    run(["bun", EMBED], {
       input: '{"query":"x","docs":[{"id":"a","text":"b"}]}',
       env: { IROHA_MODEL_DIR: mktmp() },
     }).code,
@@ -257,22 +256,19 @@ test("recall.ts — free tier returns the BM25 advisory hit", () => {
   );
   expect(r.out).toContain("連結: relation でなく URL");
 });
-test.skipIf(!NODE)(
-  "recall.ts — heavy armed + no model keeps the BM25 hit",
-  () => {
-    const r = run(
-      ["bun", RECALL, RIPROJ, "relationプロパティで連結すべきか", "3"],
-      {
-        env: {
-          IROHA_CONFIG_DIR: RIDATA3,
-          IROHA_RECALL_FORCE_HEAVY: "1",
-          IROHA_MODEL_DIR: mktmp(),
-        },
+test("recall.ts — heavy armed + no model keeps the BM25 hit", () => {
+  const r = run(
+    ["bun", RECALL, RIPROJ, "relationプロパティで連結すべきか", "3"],
+    {
+      env: {
+        IROHA_CONFIG_DIR: RIDATA3,
+        IROHA_RECALL_FORCE_HEAVY: "1",
+        IROHA_MODEL_DIR: mktmp(),
       },
-    );
-    expect(r.out).toContain("連結: relation でなく URL");
-  },
-);
+    },
+  );
+  expect(r.out).toContain("連結: relation でなく URL");
+});
 
 // ── check-inject hook (write-time decision advisory: gate / consent / abstain / inject) ──────────
 function ci(

@@ -14,17 +14,17 @@
 // It SKIPs (exit 0) when the opt-in models are not installed, exactly like rerank-eval. Run the real
 // thing with the models present: IROHA_MODEL_DIR=$HOME/.iroha/models bun tests/hybrid-eval.ts
 
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { recallLocal } from "../scripts/_lib/recall.ts";
 import { search } from "../scripts/_lib/search.ts";
+import { denseRank } from "../scripts/embed.ts";
+import { rerankPromote } from "../scripts/rerank.ts";
 
 const out = (s: string) => process.stdout.write(`${s}\n`);
 
 const ROOT = process.env.IROHA_EVAL_ROOT ?? join(import.meta.dir, "..");
-const PR = join(import.meta.dir, "..");
 const GOLDEN_FILE = join(import.meta.dir, "golden-recall.txt");
 const K = 3;
 const MINSCORE = Number(process.env.IROHA_RECALL_MINSCORE ?? "1.2");
@@ -37,37 +37,18 @@ process.env.IROHA_MODEL_DIR = MODEL_DIR;
 process.env.IROHA_RECALL_FORCE_HEAVY = "1";
 process.env.IROHA_CONFIG_DIR = mkdtempSync(join(tmpdir(), "iroha-hybrid-cfg-"));
 
-if (!(Bun.which("node") !== null)) {
-  out("hybrid-eval: SKIP (node not installed — opt-in tier)");
-  process.exit(0);
-}
-
-// Probe both opt-in models with a no-download warmup; SKIP cleanly if either is absent.
-function warmup(script: string, payload: unknown): number {
-  const r = spawnSync("node", [join(PR, "scripts", script)], {
-    input: JSON.stringify(payload),
-    encoding: "utf8",
-    env: { ...process.env, IROHA_MODEL_DIR: MODEL_DIR },
-  });
-  return r.status ?? 1;
-}
-const rcE = warmup("embed.mjs", {
-  query: "w",
-  docs: [{ id: "w", text: "w" }],
-  topk: 1,
-});
-const rcR = warmup("rerank.mjs", {
-  query: "w",
-  docs: [{ id: "w", text: "w" }],
-  threshold: 0,
-  topn: 1,
-});
-if (rcE !== 0 || rcR !== 0) {
+// Probe both opt-in models in-process (no download); SKIP cleanly if either is absent. denseRank /
+// rerankPromote throw when the dep/model is missing — the exact gate the production path falls back
+// on. Runs under Bun, no node subprocess.
+try {
+  await denseRank("w", [{ id: "w", text: "w" }], 1);
+  await rerankPromote("w", [{ id: "w", text: "w" }], 0, 1);
+} catch (e) {
   out(
-    `hybrid-eval: SKIP (opt-in models not installed: embed rc=${rcE}, rerank rc=${rcR})`,
+    `hybrid-eval: SKIP (opt-in models not installed: ${e instanceof Error ? e.message : e})`,
   );
   out(
-    "  install with: bash scripts/rerank-setup.sh   (downloads both the reranker and embedder)",
+    "  install with: bun scripts/rerank-setup.ts   (downloads both the reranker and embedder)",
   );
   process.exit(0);
 }
@@ -95,7 +76,7 @@ for (const line of golden) {
   const [query, expect] = line.split("|");
   if (!query || expect === undefined) continue;
   // HEAVY = the production heavy path (FORCE_HEAVY). FREE = pure BM25, the EXACT free-tier call.
-  const heavyIds = recallLocal(ROOT, query, K).map((h) => h.id);
+  const heavyIds = (await recallLocal(ROOT, query, K)).map((h) => h.id);
   const freeIds = search(ROOT, query, "", K, MINSCORE).map((h) => h.id);
   const q = query.slice(0, 50).padEnd(52);
   if (expect === "NONE") {
@@ -147,7 +128,7 @@ let softTotal = 0;
 let softQuiet = 0;
 for (const q of softNeg) {
   softTotal += 1;
-  if (recallLocal(ROOT, q, K).length === 0) softQuiet += 1;
+  if ((await recallLocal(ROOT, q, K)).length === 0) softQuiet += 1;
 }
 
 const recallPct = posTotal ? Math.floor((100 * posHit) / posTotal) : 100;

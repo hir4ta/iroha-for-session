@@ -2,12 +2,12 @@
 // generator + a cross-encoder reranker. iroha's proactive recall works out of the box on the
 // dependency-free BM25 stage (scripts/_lib/search.ts; no deps, no model). This adds the higher-
 // quality tier:
-//   - DENSE retrieval (embed.mjs): surfaces the semantic near-matches BM25 misses.
-//   - RERANK (rerank.mjs): PROMOTES the strong matches above the BM25 advisory list.
-// It is opt-in because it is HEAVY — a Node runtime dep (@huggingface/transformers) + two local
-// models (hundreds of MB each). embed.mjs / rerank.mjs stay .mjs (run via node): their dependency is
-// uninstalled by default, so they are intentionally outside strict TS typechecking (lib research
-// 2026 confirmed transformers.js is the right, still-maintained offline choice — see architecture.md).
+//   - DENSE retrieval (embed.ts): surfaces the semantic near-matches BM25 misses.
+//   - RERANK (rerank.ts): PROMOTES the strong matches above the BM25 advisory list.
+// It is opt-in because it is HEAVY — the @huggingface/transformers dep + two local models (hundreds
+// of MB each), uninstalled by default. Both run IN-PROCESS under Bun (transformers v4 supports Bun),
+// so the heavy tier needs no node/npm — bun alone installs (bun add) and runs it (lib research 2026
+// confirmed transformers.js is the right, still-maintained offline choice — see architecture.md).
 //
 // Run once: bun scripts/rerank-setup.ts
 // Override either model first (e.g. a lighter, Japanese-specialized reranker):
@@ -33,32 +33,29 @@ function die(msg: string): never {
   process.exit(1);
 }
 
-if (!Bun.which("node")) die("rerank-setup: node is required (>=18)");
-if (!Bun.which("npm")) die("rerank-setup: npm is required");
-
 console.log(
-  "1/4  Installing the Node runtime (@huggingface/transformers) into the plugin…",
+  "1/4  Installing @huggingface/transformers into the plugin (bun — no node/npm needed)…",
 );
-// --no-save keeps the SHIPPED package.json lean (a default install stays dependency-free); this is a
-// per-user opt-in. Re-run this script after a clean reinstall to restore it.
+// --no-save keeps the SHIPPED package.json lean (a default install stays dependency-free) and does
+// not touch the lockfile; this is a per-user opt-in. Re-run after a clean reinstall to restore it.
 const install = spawnSync(
-  "npm",
-  ["install", "--no-save", "@huggingface/transformers"],
+  "bun",
+  ["add", "--no-save", "@huggingface/transformers"],
   {
     cwd: join(SCRIPTS, ".."),
     stdio: "inherit",
   },
 );
-if (install.status !== 0) die("rerank-setup: npm install failed");
+if (install.status !== 0) die("rerank-setup: bun add failed");
 
-// Warm up a model script via node with download enabled; on failure print the tail and exit 1.
+// Warm up a model script via bun with download enabled; on failure print the tail and exit 1.
 function warm(
   label: string,
   script: string,
   payload: string,
   extraEnv: Record<string, string>,
 ): void {
-  const res = spawnSync("node", [join(SCRIPTS, script)], {
+  const res = spawnSync("bun", [join(SCRIPTS, script)], {
     input: payload,
     encoding: "utf8",
     env: { ...env, IROHA_MODEL_DIR: MODELDIR, ...extraEnv },
@@ -88,7 +85,7 @@ console.log(
 mkdirSync(MODELDIR, { recursive: true });
 warm(
   "reranker",
-  "rerank.mjs",
+  "rerank.ts",
   '{"query":"warmup","docs":[{"id":"w","text":"warmup passage"}],"threshold":0.0,"topn":1}',
   {
     IROHA_RERANK_ALLOW_DOWNLOAD: "1",
@@ -106,7 +103,7 @@ console.log(
 console.log("      semantic near-matches BM25 misses.)");
 warm(
   "embedder",
-  "embed.mjs",
+  "embed.ts",
   '{"query":"warmup","docs":[{"id":"w","text":"warmup passage"}],"topk":1}',
   {
     IROHA_EMBED_ALLOW_DOWNLOAD: "1",

@@ -112,7 +112,7 @@ these terms* — retry with different terms before concluding it is absent.
   (`recall-inject.ts` → `recall.ts :: recallLocal`) runs the cheap, always-on **local**
   stage on every substantive prompt — offline, no LLM, no Notion round-trip — and proactively
   surfaces the top matching decisions as pointers. Its FREE tier is a hand-rolled TS BM25 (`search.ts`);
-  an OPT-IN HEAVY tier adds a local dense bi-encoder (`embed.mjs`) for the semantic near-matches
+  an OPT-IN HEAVY tier adds a local dense bi-encoder (`embed.ts`) for the semantic near-matches
   BM25 misses and a cross-encoder that *promotes* strong matches above the BM25 list (it never
   vetoes a BM25 hit — that cost real recall). **This skill is the deep second stage**: the user
   or Claude escalates to `/iroha:recall` when that cheap pointer is not enough, and here we add

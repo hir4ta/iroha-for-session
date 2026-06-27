@@ -49,8 +49,8 @@
   自前 **BM25**(TS・CJK 2-gram トークナイズ・status/type 重み・英語機能語ストップワード除去=recall 中立で
   romaji 識別子 `iroha-for-session` 由来の "for" 等が cross-domain 偽一致するのを根治)。LLM もネットワークも要らず即時・
   オフライン・無料で、UserPromptSubmit hook が毎プロンプト proactively に注入する。**HEAVY tier**
-  (opt-in・`rerank_enabled`=true で arm)= **BM25 ∪ dense**(`scripts/embed.mjs`=ローカル bi-encoder
-  `multilingual-e5-small`)で候補生成し、cross-encoder(`scripts/rerank.mjs`=`bge-reranker-v2-m3`)が
+  (opt-in・`rerank_enabled`=true で arm)= **BM25 ∪ dense**(`scripts/embed.ts`=ローカル bi-encoder
+  `multilingual-e5-small`)で候補生成し、cross-encoder(`scripts/rerank.ts`=`bge-reranker-v2-m3`)が
   **強い意味一致を BM25 advisory の上に promote する(veto はしない)**。理由: cross-encoder はこの
   terse な日本語コーパスで**バイモーダル**(近言い換えは>0.4、希少な実マッチ「連結: relation でなく
   URL」は~0.003 で off-topic と区別不能)。veto 設計は実マッチを黙って落とし**recall を犠牲**にする
@@ -73,12 +73,18 @@
 - **検索/rerank を外部 lib に置換しない (2026 調査済)**。FREE の自前 BM25(`search.ts`) は MiniSearch/Orama
   等で置換可能だが、lib が肩代わりするのは BM25 算術 ~40 行のみで **CJK 2-gram tokenizer と importance
   重み(decision>session・Active>Superseded)は結局自前**＝依存追加の純損 (KISS/YAGNI・世界配布で依存最小)。
-  HEAVY の `embed.mjs`/`rerank.mjs` は **transformers.js(@huggingface/transformers) を維持**: fastembed-js は
-  archived・model2vec は JS 経路なし＝保守された offline 代替が無く、v4 が Bun も公式サポート。terse 日本語で
+  HEAVY の `embed.ts`/`rerank.ts` は **transformers.js(@huggingface/transformers) を維持**: fastembed-js は
+  archived・model2vec は JS 経路なし＝保守された offline 代替が無く、v4 が Bun を公式サポート。terse 日本語で
   cross-encoder が ~0 を返すのは **model×corpus 固有でライブラリ交換では直らない**(promote-only が正しい緩和)。
-  `embed.mjs`/`rerank.mjs` は **.mjs のまま**: opt-in の重い依存が既定で未インストール＝strict tsc の対象外に
-  する意図的境界 (node spawn・heavy を arm した人だけ node が要る)。将来オプション: スケール時の MiniSearch
-  移行 / HEAVY 軽量化の model2vec(要 JS 移植・性能未検証)。
+  `embed.ts`/`rerank.ts` は **in-process import で呼ぶ (.ts・node subprocess なし)**: transformers v4 が Bun を
+  公式サポートしたので recall.ts は `node` を spawn せず `denseRank`/`rerankPromote` を直接 await する。重い依存は
+  **変数 specifier の動的 import** (`const TRANSFORMERS = "@huggingface/transformers"; await import(TRANSFORMERS)`)
+  で呼ぶので tsc は非リテラル import を解決せず `any` のまま通る＝**既定で未インストールでも strict tsc/`bun test`
+  を通り** (`bun add --no-save` で arm した人だけ実体が要る)、FREE tier は dep ゼロのまま (動的 import は heavy
+  分岐内でのみ実行)。これは旧「`embed.mjs`/`rerank.mjs` は .mjs のまま・node spawn で strict tsc 対象外」を
+  **supersede** する (v4 の Bun サポートで node/npm 依存が消え、変数 import で .ts 化と tsc 両立が可能に＝
+  query 時も setup 時も bun 一本)。将来オプション: スケール時の MiniSearch 移行 / HEAVY 軽量化の
+  model2vec(要 JS 移植・性能未検証)。
 - **repo ミラーは `.iroha/state.md`（State 全文）と `.iroha/index.ndjson`（keys＋検索snippet）の 2 つ**
   （ともに commit し teammate は pull で共有）。SessionStart hook は Notion 非到達なので `state.md`
   を注入。**決定の本文はローカルに持たない**（Notion 正本）。index は id/topic/status/date に加え、

@@ -73,7 +73,7 @@ const WRAPPERS = [
   "<user-prompt-submit-hook",
 ];
 
-function run(): number {
+async function run(): Promise<number> {
   // 1. Off-switch.
   if (process.env.IROHA_RECALL_DISABLE) return 0;
 
@@ -114,7 +114,7 @@ function run(): number {
   writeFileSync(marker, "");
 
   // 5. Local recall over the keys-only index (FREE BM25 ∪ opt-in HEAVY dense+rerank promotion).
-  const hits = recallLocal(
+  const hits = await recallLocal(
     root,
     prompt,
     Number(process.env.IROHA_RECALL_TOPN ?? "3"),
@@ -135,4 +135,4 @@ function run(): number {
   return 0;
 }
 
-process.exit(process.argv[2] === "--selfcheck" ? selfcheck() : run());
+process.exit(process.argv[2] === "--selfcheck" ? selfcheck() : await run());

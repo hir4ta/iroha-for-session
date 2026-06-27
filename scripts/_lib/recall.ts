@@ -3,9 +3,13 @@
 // AND the quality oracle (tests/hybrid-eval), so the eval measures exactly what production does.
 //
 //   FREE tier  (default, no deps):   BM25 over the keys-only index (scripts/_lib/search.ts).
-//   HEAVY tier (opt-in, armed):      BM25 hits ∪ DENSE candidates (scripts/embed.mjs); the
-//                                    cross-encoder reranker (scripts/rerank.mjs) PROMOTES the strong
+//   HEAVY tier (opt-in, armed):      BM25 hits ∪ DENSE candidates (scripts/embed.ts); the
+//                                    cross-encoder reranker (scripts/rerank.ts) PROMOTES the strong
 //                                    (dense-discovered) matches above the BM25 advisory list.
+//
+// Both heavy stages run IN-PROCESS under Bun (transformers v4 supports Bun) — no node subprocess.
+// The heavy deps live behind a dynamic import inside denseRank/rerankPromote, so importing recall.ts
+// never loads @huggingface/transformers; the FREE tier stays dependency-free and offline.
 //
 // Why the reranker promotes but never vetoes. Measured on this corpus the cross-encoder is bimodal:
 // a near-paraphrase scores >0.4, but a terse, real, lexically-strong match scores ~0.003 —
@@ -19,37 +23,11 @@
 //
 // Output: one compact JSON object per line, best first: {score,type,id,topic,status,date,title}.
 
-import { spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { denseRank, type Scored } from "../embed.ts";
+import { rerankPromote } from "../rerank.ts";
 import { configGet } from "./config.ts";
 import { indexRead } from "./index.ts";
 import { type SearchHit, search } from "./search.ts";
-
-const SCRIPTS = join(import.meta.dir, "..");
-
-function modelDir(): string {
-  return (
-    process.env.IROHA_MODEL_DIR ||
-    join(process.env.HOME ?? "", ".iroha", "models")
-  );
-}
-
-// Run a model script (embed.mjs / rerank.mjs) via node, feeding `payload` on stdin. Returns the
-// parsed JSON array, or null on any failure (missing model -> exit 3, parse error, node absent).
-function runModel(scriptBasename: string, payload: unknown): unknown[] | null {
-  const res = spawnSync("node", [join(SCRIPTS, scriptBasename)], {
-    input: JSON.stringify(payload),
-    encoding: "utf8",
-    env: { ...process.env, IROHA_MODEL_DIR: modelDir() },
-  });
-  if (res.status !== 0 || !res.stdout) return null;
-  try {
-    const v = JSON.parse(res.stdout);
-    return Array.isArray(v) ? v : null;
-  } catch {
-    return null;
-  }
-}
 
 function docText(r: Record<string, unknown>): string {
   return [r.title, r.topic, r.text]
@@ -69,17 +47,16 @@ function uniq(ids: string[]): string[] {
 }
 
 // recallLocal(root, query, topn) -> ranked records (BM25 advisory, optionally heavy-promoted).
-export function recallLocal(
+export async function recallLocal(
   root: string,
   query: string,
   topn = 3,
-): SearchHit[] {
+): Promise<SearchHit[]> {
   if (indexRead(root).length === 0) return [];
 
-  // Heavy tier on only when node is present AND (armed in config OR forced for eval).
+  // Heavy tier on only when armed (config OR eval-forced). Runs in-process under Bun — no node dep.
   const heavy =
     process.env.IROHA_RERANK_DISABLE !== "1" &&
-    Bun.which("node") !== null &&
     (configGet("rerank_enabled") === "true" ||
       process.env.IROHA_RECALL_FORCE_HEAVY === "1");
 
@@ -98,32 +75,42 @@ export function recallLocal(
     text: docText(r),
   }));
 
-  // 2. Dense candidates (opt-in). embed.mjs ranks the WHOLE index by cosine; null -> BM25 only.
-  const dense = docs.length
-    ? runModel("embed.mjs", {
+  // 2. Dense candidates (opt-in). denseRank ranks the WHOLE index by cosine; a throw (dep/model
+  //    unavailable) -> BM25-only candidates.
+  let dense: Scored[] | null = null;
+  if (docs.length) {
+    try {
+      dense = await denseRank(
         query,
         docs,
-        topk: Number(process.env.IROHA_DENSE_CANDIDATES ?? "8"),
-      })
-    : null;
-  const denseIds = (dense ?? [])
-    .map((d) => (d as { id?: string }).id ?? "")
-    .filter((id) => id !== "");
+        Number(process.env.IROHA_DENSE_CANDIDATES ?? "8"),
+      );
+    } catch {
+      dense = null;
+    }
+  }
+  const denseIds = (dense ?? []).map((d) => d.id).filter((id) => id !== "");
 
   // 3. Candidate union (for the reranker to judge): BM25 ids first, then any new dense id.
   const unionIds = uniq([...bmIds, ...denseIds]);
   if (unionIds.length === 0) return [];
 
-  // 4. Reranker as PROMOTER. Score the union; keep only the "strong" (>= threshold) survivors.
+  // 4. Reranker as PROMOTER. Score the union; keep only the "strong" (>= threshold) survivors. A
+  //    throw -> fall back to the BM25 advisory result (keep BM25 hits, promote nothing).
   const candDocs = docs.filter((d) => unionIds.includes(d.id));
-  const survivors = runModel("rerank.mjs", {
-    query,
-    docs: candDocs,
-    threshold: Number(process.env.IROHA_RERANK_THRESHOLD ?? "0.05"),
-    topn: 50,
-  });
+  let survivors: Scored[] | null = null;
+  try {
+    survivors = await rerankPromote(
+      query,
+      candDocs,
+      Number(process.env.IROHA_RERANK_THRESHOLD ?? "0.05"),
+      50,
+    );
+  } catch {
+    survivors = null;
+  }
   const strongIds = (survivors ?? [])
-    .map((s) => (s as { id?: string }).id ?? "")
+    .map((s) => s.id)
     .filter((id) => id !== "");
 
   // 5. Final ranking: strong semantic matches first, then the remaining BM25 hits. BM25 hits are
@@ -135,10 +122,7 @@ export function recallLocal(
   const byId = new Map(indexRead(root).map((r) => [String(r.id ?? ""), r]));
   const scoreById = new Map<string, number>();
   for (const h of bmHits) scoreById.set(h.id, h.score);
-  for (const s of survivors ?? []) {
-    const o = s as { id?: string; score?: number };
-    if (o.id) scoreById.set(o.id, o.score ?? 0);
-  }
+  for (const s of survivors ?? []) scoreById.set(s.id, s.score);
   const out: SearchHit[] = [];
   for (const id of finalIds) {
     const r = byId.get(id);
@@ -159,6 +143,10 @@ export function recallLocal(
 // CLI: `bun recall.ts <root> <query> [topn]`. One compact JSON hit per line.
 if (import.meta.main) {
   const [root, query, topn] = process.argv.slice(2);
-  const hits = recallLocal(root ?? "", query ?? "", topn ? Number(topn) : 3);
+  const hits = await recallLocal(
+    root ?? "",
+    query ?? "",
+    topn ? Number(topn) : 3,
+  );
   for (const h of hits) process.stdout.write(`${JSON.stringify(h)}\n`);
 }

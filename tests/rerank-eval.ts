@@ -1,4 +1,4 @@
-// rerank-eval.ts — precision eval for the OPT-IN cross-encoder rerank gate (scripts/rerank.mjs).
+// rerank-eval.ts — precision eval for the OPT-IN cross-encoder rerank gate (scripts/rerank.ts).
 //
 // The cheap BM25 stage (recall-eval) has high recall but limited precision on a small single-domain
 // corpus: a prompt that merely shares the project's vocabulary lexically matches an unrelated
@@ -13,48 +13,30 @@
 //
 // Run: bun tests/rerank-eval.ts   (PASS / SKIP / FAIL)
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { indexRead } from "../scripts/_lib/index.ts";
+import { rerankPromote } from "../scripts/rerank.ts";
 
 const out = (s: string) => process.stdout.write(`${s}\n`);
 
 const ROOT = join(import.meta.dir, "..");
-const RERANK = join(ROOT, "scripts", "rerank.mjs");
 const INDEX = join(ROOT, ".iroha", "index.ndjson");
 const THRESHOLD = process.env.IROHA_RERANK_THRESHOLD ?? "0.05";
-const MODEL_DIR =
+// rerankPromote reads IROHA_MODEL_DIR from the env; pin it (default per-user dir) before calling.
+process.env.IROHA_MODEL_DIR =
   process.env.IROHA_MODEL_DIR ?? join(homedir(), ".iroha", "models");
 
-if (!(Bun.which("node") !== null)) {
-  out("SKIP: node not available (opt-in rerank not testable here)");
-  process.exit(0);
-}
 if (!existsSync(INDEX)) {
   out("SKIP: no local index");
   process.exit(0);
 }
 
-// Run rerank.mjs via node. Returns { stdout, code }.
-function nodeRerank(payload: unknown): { stdout: string; code: number } {
-  const r = spawnSync("node", [RERANK], {
-    input: JSON.stringify(payload),
-    encoding: "utf8",
-    env: { ...process.env, IROHA_MODEL_DIR: MODEL_DIR },
-  });
-  return { stdout: r.stdout ?? "", code: r.status ?? 1 };
-}
-
-// Probe: is the runtime+model actually usable? rerank.mjs exits 3 when the dep/model is missing.
-const probe = nodeRerank({
-  query: "ping",
-  docs: [{ id: "x", text: "ping pong" }],
-  threshold: 0.0,
-  topn: 1,
-});
-if (probe.code === 3 || probe.stdout.trim() === "") {
+// Probe: is the runtime+model actually usable? rerankPromote throws when the dep/model is missing.
+try {
+  await rerankPromote("ping", [{ id: "x", text: "ping pong" }], 0.0, 1);
+} catch {
   out(
     "SKIP: rerank runtime/model not installed (run the rerank setup to enable this precision eval)",
   );
@@ -74,18 +56,10 @@ const topicOf = (id: string): string => {
   return r ? `${String(r.topic ?? "")} ${String(r.title ?? "")}` : "";
 };
 
-function rerank(query: string): string[] {
-  const r = nodeRerank({
-    query,
-    docs,
-    threshold: Number(THRESHOLD),
-    topn: 3,
-  });
-  if (r.code !== 0) return [];
+async function rerank(query: string): Promise<string[]> {
   try {
-    return (JSON.parse(r.stdout) as { id?: string }[])
-      .map((s) => s.id ?? "")
-      .filter((id) => id !== "");
+    const survivors = await rerankPromote(query, docs, Number(THRESHOLD), 3);
+    return survivors.map((s) => s.id).filter((id) => id !== "");
   } catch {
     return [];
   }
@@ -114,7 +88,7 @@ const NEGQ = [
 out(`=== rerank precision eval (threshold=${THRESHOLD}) ===`);
 let recallHit = 0;
 for (const [q, want] of TRUEQ) {
-  const ok = rerank(q).some((id) => topicOf(id).includes(want));
+  const ok = (await rerank(q)).some((id) => topicOf(id).includes(want));
   if (ok) {
     recallHit += 1;
     out(`  HIT      ${q}`);
@@ -124,7 +98,7 @@ for (const [q, want] of TRUEQ) {
 }
 let falseInject = 0;
 for (const q of NEGQ) {
-  const n = rerank(q).length;
+  const n = (await rerank(q)).length;
   if (n === 0) {
     out(`  ABSTAIN  ${q}`);
   } else {
