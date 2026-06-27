@@ -56,7 +56,7 @@ likely conflicts** on a larger project, run the local BM25 search over salient t
 the changed paths / diff (file names, new dependencies, identifiers, removed approaches):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.sh" "$ROOT" "<salient terms from the diff>" decision 5
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.ts" "$ROOT" "<salient terms from the diff>" decision 5
 ```
 
 ## 4. Judge each candidate (the intelligence)

@@ -263,23 +263,23 @@ mkdir -p "$SROOT/.iroha"
   printf '%s\n' '{"type":"decision","id":"d4","topic":"リコール","status":"Active","date":"2026-06-25","title":"リコール: hybrid","project":"demo","text":"notion-search と index を融合して検索する"}'
   printf '%s\n' '{"type":"session","id":"s1","topic":"","status":"Complete","date":"2026-06-25","title":"2026-06-25 — 認証フローの設計","project":"demo","text":"OAuth の認証フローを設計した"}'
 } >"$SROOT/.iroha/index.ndjson"
-SEARCH="$HERE/../scripts/_lib/search.sh"
+SEARCH="$HERE/../scripts/_lib/search.ts"
 # CJK bigram tokenization: a Japanese query matches a Japanese title (空白splitなら潰れる)
-eq search-cjk-bigram "d1" "$(bash "$SEARCH" "$SROOT" "URLで連結したい" decision 3 | head -1 | jq -r .id)"
+eq search-cjk-bigram "d1" "$(bun "$SEARCH" "$SROOT" "URLで連結したい" decision 3 | head -1 | jq -r .id)"
 # text-field enrichment: "APIトークン" appears ONLY in d2's rationale snippet, not its title —
 # title-only matching would miss it; the text field surfaces it (the Q2 miss this fixes).
-eq search-text-field "d2" "$(bash "$SEARCH" "$SROOT" "APIトークンは必要か" decision 3 | head -1 | jq -r .id)"
+eq search-text-field "d2" "$(bun "$SEARCH" "$SROOT" "APIトークンは必要か" decision 3 | head -1 | jq -r .id)"
 # status weight: same topic "リコール", Active (d4) must outrank Superseded (d3).
-eq search-active-over-superseded "d4" "$(bash "$SEARCH" "$SROOT" "リコール" decision 3 | head -1 | jq -r .id)"
+eq search-active-over-superseded "d4" "$(bun "$SEARCH" "$SROOT" "リコール" decision 3 | head -1 | jq -r .id)"
 # English alnum token matches a snippet ("OAuth" only in s1's text).
-has search-english-token "s1" "$(bash "$SEARCH" "$SROOT" "oauth flow" "" 3 | jq -r .id)"
+has search-english-token "s1" "$(bun "$SEARCH" "$SROOT" "oauth flow" "" 3 | jq -r .id)"
 # type filter: only sessions returned when type=session even though d2 also matches 認証.
-eq search-type-filter "session" "$(bash "$SEARCH" "$SROOT" "認証" session 3 | jq -rs 'map(.type)|unique|join(",")')"
+eq search-type-filter "session" "$(bun "$SEARCH" "$SROOT" "認証" session 3 | jq -rs 'map(.type)|unique|join(",")')"
 # abstention: a query with no token overlap returns nothing (no false-positive injection).
-eq search-abstain "" "$(bash "$SEARCH" "$SROOT" "zzqqxx vvbbnn wwkkpp" "" 3)"
+eq search-abstain "" "$(bun "$SEARCH" "$SROOT" "zzqqxx vvbbnn wwkkpp" "" 3)"
 # output is valid JSON, descending by score.
-eq search-valid-json "ok" "$(bash "$SEARCH" "$SROOT" "リコール 検索" "" 5 | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
-eq search-desc-score "true" "$(bash "$SEARCH" "$SROOT" "リコール 検索 連結 認証" "" 5 | jq -s '[.[].score] as $s | $s==($s|sort|reverse)')"
+eq search-valid-json "ok" "$(bun "$SEARCH" "$SROOT" "リコール 検索" "" 5 | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
+eq search-desc-score "true" "$(bun "$SEARCH" "$SROOT" "リコール 検索 連結 認証" "" 5 | jq -s '[.[].score] as $s | $s==($s|sort|reverse)')"
 rm -rf "$SROOT"
 
 echo "=== recall-inject hook (local BM25 recall: gate, consent, cache, abstain, inject) ==="

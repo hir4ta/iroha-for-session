@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# recall-eval.sh — quality oracle for the local recall stage (scripts/_lib/search.sh).
+# recall-eval.sh — quality oracle for the local recall stage (scripts/_lib/search.ts).
 #
 # selftest.sh proves the search MECHANICS (tokenization, status weight, abstention) on synthetic
 # fixtures. This proves the search QUALITY on the project's REAL index: a hand-labeled golden set
@@ -27,7 +27,7 @@
 set -u
 
 ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
-SEARCH="$(dirname "$0")/../scripts/_lib/search.sh"
+SEARCH="$(dirname "$0")/../scripts/_lib/search.ts"
 K=3                                   # Recall@K — how many hits the hook would surface
 MINSCORE="${IROHA_RECALL_MINSCORE:-1.2}"   # the production relevance floor (keep in sync w/ hook)
 RECALL_THRESHOLD=80                   # require Recall@K >= 80%
@@ -49,7 +49,7 @@ echo "=== recall-eval (Recall@$K, MINSCORE=$MINSCORE) over $ROOT/.iroha/index.nd
 printf '%-52s %-8s %s\n' "query" "result" "rank/expected"
 while IFS='|' read -r query expect; do
   [ -z "$query" ] && continue
-  ids=$(bash "$SEARCH" "$ROOT" "$query" "" "$K" "$MINSCORE" 2>/dev/null | jq -r '.id')
+  ids=$(bun "$SEARCH" "$ROOT" "$query" "" "$K" "$MINSCORE" 2>/dev/null | jq -r '.id')
   if [ "$expect" = "NONE" ]; then
     abs_total=$((abs_total + 1))
     if [ -z "$ids" ]; then

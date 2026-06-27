@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# recall-scale.sh — proves local BM25 recall (scripts/_lib/search.sh) and the enumeration
+# recall-scale.sh — proves local BM25 recall (scripts/_lib/search.ts) and the enumeration
 # index still behave at "hundreds of sessions" scale, retiring the long-carried "does recall
 # hold up as the memory grows?" risk with a MEASURED test instead of a vibe.
 #
@@ -19,7 +19,7 @@
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-SEARCH="$HERE/../scripts/_lib/search.sh"
+SEARCH="$HERE/../scripts/_lib/search.ts"
 INDEX="$HERE/../scripts/_lib/index.ts"
 K=3
 MINSCORE="${IROHA_RECALL_MINSCORE:-1.2}"   # production relevance floor (keep in sync with hook)
@@ -57,7 +57,7 @@ echo "=== recall-scale (N=$total rows, Recall@$K, MINSCORE=$MINSCORE, timeout=${
 
 check_needle() { # check_needle <query> <expected-id>
   local q="$1" want="$2" rank
-  rank=$(bash "$SEARCH" "$ROOT" "$q" "" "$K" "$MINSCORE" 2>/dev/null | jq -r '.id' | grep -nxF "$want" | head -1 | cut -d: -f1)
+  rank=$(bun "$SEARCH" "$ROOT" "$q" "" "$K" "$MINSCORE" 2>/dev/null | jq -r '.id' | grep -nxF "$want" | head -1 | cut -d: -f1)
   if [ -n "$rank" ]; then
     printf '  PASS  needle "%s" -> rank %s\n' "$q" "$rank"; pass=$((pass + 1))
   else
@@ -72,7 +72,7 @@ check_needle "compactした後に会話を戻したい"        ndl-compact
 check_needle "抽出はbashとClaudeどちらでやる"       ndl-extract
 
 # abstention at scale: an unrelated query must inject nothing (no false-positive at size).
-abs=$(bash "$SEARCH" "$ROOT" "deploy the kubernetes cluster with terraform on aws" "" "$K" "$MINSCORE" 2>/dev/null)
+abs=$(bun "$SEARCH" "$ROOT" "deploy the kubernetes cluster with terraform on aws" "" "$K" "$MINSCORE" 2>/dev/null)
 if [ -z "$abs" ]; then printf '  PASS  abstain on unrelated query\n'; pass=$((pass + 1))
 else printf '  FAIL  abstain leaked: %s\n' "$(printf '%s' "$abs" | head -1)"; fail=$((fail + 1)); fi
 
@@ -86,7 +86,7 @@ else printf '  FAIL  enumeration dropped rows (%s/%s)\n' "$listed" "$total"; fai
 # coarse but exactly the right granularity against a 5s ceiling: it catches a catastrophic
 # slowdown without sub-second flakiness on a loaded CI runner.
 t0=$SECONDS
-bash "$SEARCH" "$ROOT" "認証 連結 検索 抽出 圧縮 機能" "" "$K" "$MINSCORE" >/dev/null 2>&1
+bun "$SEARCH" "$ROOT" "認証 連結 検索 抽出 圧縮 機能" "" "$K" "$MINSCORE" >/dev/null 2>&1
 el=$((SECONDS - t0))
 if [ "$el" -lt "$TIMEOUT_S" ]; then printf '  PASS  search latency %ss < %ss (hook timeout)\n' "$el" "$TIMEOUT_S"; pass=$((pass + 1))
 else printf '  FAIL  search latency %ss >= %ss (would time out the hook)\n' "$el" "$TIMEOUT_S"; fail=$((fail + 1)); fi

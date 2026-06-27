@@ -3,7 +3,7 @@
 # PROMOTER (opt-in). One code path, used by BOTH the UserPromptSubmit hook (hooks/recall-inject.sh)
 # AND the quality oracle (tests/hybrid-eval.sh), so the eval measures exactly what production does.
 #
-#   FREE tier  (default, no deps):   pure-jq BM25 over the keys-only index (scripts/_lib/search.sh).
+#   FREE tier  (default, no deps):   pure-jq BM25 over the keys-only index (scripts/_lib/search.ts).
 #   HEAVY tier (opt-in, armed):      BM25 hits ∪ DENSE candidates (scripts/embed.mjs); the
 #                                    cross-encoder reranker (scripts/rerank.mjs) PROMOTES the strong
 #                                    (dense-discovered) matches above the BM25 advisory list.
@@ -43,7 +43,7 @@ iroha_recall_local() { # <root> <query> [topn] -> JSON lines, ranked
   local cand_n bm_hits
   cand_n="$topn"
   [ "$heavy" = 1 ] && cand_n="${IROHA_RERANK_CANDIDATES:-8}"
-  bm_hits=$(bash "$pr/scripts/_lib/search.sh" "$root" "$query" "" \
+  bm_hits=$(bun "$pr/scripts/_lib/search.ts" "$root" "$query" "" \
     "$cand_n" "${IROHA_RECALL_MINSCORE:-1.2}" 2>/dev/null)
 
   if [ "$heavy" != 1 ]; then

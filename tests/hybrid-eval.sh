@@ -54,7 +54,7 @@ while IFS='|' read -r query expect; do
   # call recall.sh makes. Running both for the same query lets recovery/regression be DERIVED from the
   # data (no hardcoded "which queries are hard" list to drift from golden-recall.txt).
   heavy_ids=$(iroha_recall_local "$ROOT" "$query" "$K" 2>/dev/null | jq -r 'select(.id)|.id')
-  free_ids=$(bash "$PR/scripts/_lib/search.sh" "$ROOT" "$query" "" "$K" "${IROHA_RECALL_MINSCORE:-1.2}" 2>/dev/null | jq -r 'select(.id)|.id')
+  free_ids=$(bun "$PR/scripts/_lib/search.ts" "$ROOT" "$query" "" "$K" "${IROHA_RECALL_MINSCORE:-1.2}" 2>/dev/null | jq -r 'select(.id)|.id')
   if [ "$expect" = "NONE" ]; then
     abs_total=$((abs_total + 1))
     if [ -z "$heavy_ids" ]; then

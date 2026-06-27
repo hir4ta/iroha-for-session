@@ -276,7 +276,7 @@ decision's `{topic, status, id}` exhaustively:
 ```bash
 ROOT="$PWD"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.ts"
 bun "$IDX" find-topic "$ROOT" "<topic>"   # every existing row on this topic (any status)
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.sh" "$ROOT" "<this decision's topic + choice>" decision 5
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.ts" "$ROOT" "<this decision's topic + choice>" decision 5
 ```
 
 The second line is a **near-duplicate check beyond the exact topic prefix** (mem0-style

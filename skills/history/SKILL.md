@@ -16,7 +16,7 @@ writes. Report in the **user's conversation language**.
 
 ```bash
 L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.ts"
-SEARCH="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.sh"; ROOT="$PWD"
+SEARCH="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.ts"; ROOT="$PWD"
 bun "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
 ```
 
@@ -31,7 +31,7 @@ to the original. Find that head from `$ARGUMENTS`:
 # a) Exact-ish topic match (the "<topic>:" prefix is the dedup key).
 bun "$IDX" find-topic "$ROOT" "$ARGUMENTS"
 # b) Fuzzy fallback when the user typed a paraphrase, not the literal topic.
-bash "$SEARCH" "$ROOT" "$ARGUMENTS" decision 5 0
+bun "$SEARCH" "$ROOT" "$ARGUMENTS" decision 5 0
 ```
 
 Pick the head:
