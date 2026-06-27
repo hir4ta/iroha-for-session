@@ -166,7 +166,7 @@ API token.
    literal `nt` / `n` (the same escape-leak the State publish step warns about; it also bites
    callouts and lists inserted via MCP). **`fetch` the page afterward to confirm no leak.** Also
    run the composed guide/caption text through
-   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.sh"` before publishing — it flags bare
+   `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.ts"` before publishing — it flags bare
    file/path tokens (`extract.sh` / `CLAUDE.md`) Notion would auto-linkify; backtick them until it
    exits 0.
 

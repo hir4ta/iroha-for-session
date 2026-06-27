@@ -44,7 +44,7 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   reversed. Flag the older one. (high)
 - **C. Orphaned decisions** — a decision whose `Session` URL is empty or does not resolve
   (`notion-fetch` 404). The "why" loses its anchor. (medium)
-- **C2. Broken / missing lineage** — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.sh" "$PWD"`
+- **C2. Broken / missing lineage** — `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.ts" "$PWD"`
   flags a `supersedes` that points to an id missing from the index (**broken lineage**, the
   `/iroha:history` chain dead-ends). Also flag the inverse: a `Superseded` decision that **no**
   Active decision links back to via `Supersedes` (a dangling successor — the chain has a hole).
@@ -54,7 +54,7 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
 - **D. State drift** — first run the **deterministic** lint on the local mirror (byte-identical
   to the Notion page under save-session's single-source rule), then `notion-fetch` the page for
   the judgement checks below:
-  `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$(bun "$L" state-md-path "$PWD")"`
+  `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.ts" "$(bun "$L" state-md-path "$PWD")"`
   flags the **escape-leak** and **dropped-section** classes mechanically (the two that recurred);
   treat any issue it prints as a high-confidence finding. Then compare against Notion:
   - its header summary vs the newest Session's `Summary` (stale if it names an older
@@ -98,7 +98,7 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   **This is the check whose absence let that drift hide — run it every audit.** First the
   deterministic offline floor (catches malformed rows, duplicate ids, duplicate Active topics, and a
   State that points at a session missing from the index):
-  `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.sh" "$PWD"` — treat anything it prints as
+  `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.ts" "$PWD"` — treat anything it prints as
   high-confidence. **Also validate the cached ids** — a non-empty but malformed id (a leftover
   `DSID` placeholder, a truncated value) passes every "is it set?" check yet silently breaks recall,
   this audit, and decision saves (a real dogfood defect): `bun "$L" validate` (offline shape check),
@@ -143,7 +143,7 @@ report), apply **only the safe, reversible** fixes and re-report each:
 - **I (index drift / reindex)** — for each Notion decision/session id missing from the index, fetch
   it and `index.ts upsert "$PWD" <type> <id> <topic> <status> <date> "<Name>" "<Project>" "<snippet>"`
   (regenerate the ≤160-char snippet from its Rationale/Summary, ending on a word boundary), and drop
-  any index row whose id 404s. Re-run `integrity.sh` and the Notion diff until they reconcile. Remind
+  any index row whose id 404s. Re-run `integrity.ts` and the Notion diff until they reconcile. Remind
   the user to commit `.iroha/index.ndjson`. This is the **reindex repair**; it is reversible (it only
   adds/refreshes keys — Notion stays the content source of truth) so it is safe to apply on confirmation.
   If `config.ts validate` flagged a malformed id, repair it: re-run `/iroha:init` against the same

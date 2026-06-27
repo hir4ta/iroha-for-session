@@ -94,7 +94,7 @@ Sections, in this order:
    so the arc of the period is visual.
 
 Wrap every file / command / path in backticks, and run the composed content through
-`bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.sh"` before publishing (it flags bare
+`bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.ts"` before publishing (it flags bare
 file/path tokens Notion would auto-linkify to `http://…`; backtick them until it exits 0).
 Indent callout / table / toggle children
 with **tabs**.

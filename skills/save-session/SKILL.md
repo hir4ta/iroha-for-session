@@ -192,7 +192,7 @@ Indent callout / toggle / table children with **tabs**. Keep the returned page U
 **Lint for auto-linkify BEFORE publishing — deterministic gate, not eyeballing.** Backticking
 by hand recurs as a leak (it has turned `extract.sh` / `CLAUDE.md` in this very page into bogus
 `http://…` links). So before the `notion-create-pages`, write the composed `content` to a temp
-file and run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.sh" <file>`; it lists every bare
+file and run `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.ts" <file>`; it lists every bare
 file / command / path token sitting outside a backtick span / code fence / `[text](url)` link.
 Wrap each flagged token in backticks and re-lint until it **exits 0** — never publish content
 link-lint flags. Apply the same gate to **every prose surface** you publish here: the Session
@@ -409,10 +409,10 @@ STATE
 # summary-only callout). If it prints any issue, FIX the body and rewrite "$MD" until it is clean;
 # never publish a State that fails the lint. Because the mirror and Notion are byte-identical
 # (single source), a clean mirror means a clean Notion page.
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$MD"
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.ts" "$MD"
 # Same gate against Notion auto-linkify: a bare file/path in the State body becomes a bogus
 # http://… link. link-lint must also exit 0 before publishing (backtick anything it lists).
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.sh" "$MD"
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.ts" "$MD"
 ```
 Then publish the **exact same text** (the file you just wrote) to Notion — same headings,
 same links, same lines; do not re-summarize or re-format it:
@@ -456,13 +456,13 @@ surface it and audit under-counts, with no error at save time (this is exactly h
 **every decision page you created this session is in the index**:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.sh" "$PWD"   # must exit 0 (no malformed/dup/State-dangling)
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.ts" "$PWD"   # must exit 0 (no malformed/dup/State-dangling)
 # for each decision page id you created above, confirm it is now indexed:
 bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.ts" list "$PWD" decision | jq -r .id | grep -qF "<decision_page_id>" \
   || echo "MISSING FROM INDEX: <decision_page_id> — upsert it before finishing"
 ```
 
-If anything is missing or `integrity.sh` prints an issue, fix it (upsert the row / correct the
+If anything is missing or `integrity.ts` prints an issue, fix it (upsert the row / correct the
 mirror) and re-check until clean — do **not** finish on a drifted substrate.
 
 Report the Session page URL, how many decisions were recorded, that the Project State was

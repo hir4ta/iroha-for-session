@@ -67,7 +67,7 @@ do not merge them — just connect them.
 callouts, and the `CI` / `DevTools` / `Frameworks` properties** — so Notion does not
 auto-linkify `.sh` / `.md` / `.json` names into bogus `http://…` URLs (a real defect found
 while dogfooding: `selftest.sh` and `CLAUDE.md` rendered as `http://selftest.sh`). **Run the
-composed content through `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.sh"` before
+composed content through `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.ts"` before
 publishing and backtick anything it flags (it exits non-zero on a bare file/path token).** Reflect
 the **current** stack read in step 2, not a remembered snapshot — re-running this skill is
 how a stale field (e.g. a `CI` that now exists, a recall design that has since changed) gets

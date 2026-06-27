@@ -427,30 +427,29 @@ eq ci-gate-consent "" "$(ci 'git commit -m "relationで連結"' cci5 IROHA_CONFI
 rm -rf "$RIDATA" "$RIDATA2" "$RIDATA3" "$RIPROJ" "$RICACHE"
 
 echo "=== state-lint (State body validator: escapes, missing sections, summary, real mirror) ==="
-# shellcheck disable=SC1091 # dynamic source path; the file exists at runtime
-. "$HERE/../scripts/_lib/state-lint.sh"
+SL="$HERE/../scripts/_lib/state-lint.ts"
 SLDIR=$(mktemp -d "${TMPDIR:-/tmp}/iroha-sl.XXXXXX")
 # good: real newlines, a summary line, and the three required sections -> clean (exit 0).
 printf '%s\n' '**Latest (2026-06-25):** did things.' '## Recent sessions' '- [x — y](u)' \
   '## Unfinished / Next' '- [ ] thing' '## Decisions' '- [Decisions DB](u)' >"$SLDIR/good.md"
-eq state-lint-good "0" "$(iroha_state_lint "$SLDIR/good.md" >/dev/null 2>&1; echo $?)"
+eq state-lint-good "0" "$(bun "$SL" "$SLDIR/good.md" >/dev/null 2>&1; echo $?)"
 # bad: literal \n / \t escape leak on one line (the exact corruption that degraded a past State).
 printf '%s' '**Latest:** a\nb\t## Recent sessions\n## Unfinished\n## Decisions' >"$SLDIR/escape.md"
-eq state-lint-escape-fail "1" "$(iroha_state_lint "$SLDIR/escape.md" >/dev/null 2>&1; echo $?)"
-has state-lint-escape-msg "escape sequence" "$(iroha_state_lint "$SLDIR/escape.md" 2>&1)"
+eq state-lint-escape-fail "1" "$(bun "$SL" "$SLDIR/escape.md" >/dev/null 2>&1; echo $?)"
+has state-lint-escape-msg "escape sequence" "$(bun "$SL" "$SLDIR/escape.md" 2>&1)"
 # bad: degraded to a summary-only callout (no sections) -> fail.
 printf '%s\n' '**Latest (2026-06-25):** only a summary, sections were dropped.' >"$SLDIR/summaryonly.md"
-eq state-lint-summaryonly-fail "1" "$(iroha_state_lint "$SLDIR/summaryonly.md" >/dev/null 2>&1; echo $?)"
+eq state-lint-summaryonly-fail "1" "$(bun "$SL" "$SLDIR/summaryonly.md" >/dev/null 2>&1; echo $?)"
 # bad: empty/missing file -> fail (never publish an empty State).
 : >"$SLDIR/empty.md"
-eq state-lint-empty-fail "1" "$(iroha_state_lint "$SLDIR/empty.md" >/dev/null 2>&1; echo $?)"
+eq state-lint-empty-fail "1" "$(bun "$SL" "$SLDIR/empty.md" >/dev/null 2>&1; echo $?)"
 # the project's REAL committed mirror must pass — guards against false positives AND makes CI fail
 # if a corrupt State is ever committed (the recurring rot class, now caught at green/push time).
 # A fresh / reset repo has no mirror yet (it regenerates on the first /iroha:save-session), which
-# is not a failure — like integrity.sh treating a missing index as a clean fresh project — so only
+# is not a failure — like integrity.ts treating a missing index as a clean fresh project — so only
 # assert when the mirror is present.
 if [ -f "$HERE/../.iroha/state.md" ]; then
-  realmirror=$(iroha_state_lint "$HERE/../.iroha/state.md" >/dev/null 2>&1; echo $?)
+  realmirror=$(bun "$SL" "$HERE/../.iroha/state.md" >/dev/null 2>&1; echo $?)
 else
   realmirror=0   # no mirror yet (fresh / reset repo) — regenerates on first save
 fi
@@ -458,24 +457,23 @@ eq state-lint-real-mirror "0" "$realmirror"
 rm -rf "$SLDIR"
 
 echo "=== link-lint (Notion auto-linkify guard: bare file/path tokens outside backticks/fences/links) ==="
-LL="$HERE/../scripts/_lib/link-lint.sh"
+LL="$HERE/../scripts/_lib/link-lint.ts"
 # a bare filename in body text is flagged (Notion would auto-linkify it to http://…).
-eq link-lint-bare-fail "1" "$(printf 'save が extract.sh を呼ぶ\n' | bash "$LL" >/dev/null 2>&1; echo $?)"
-has link-lint-names-token "extract.sh" "$(printf 'save が extract.sh を呼ぶ\n' | bash "$LL" 2>&1)"
+eq link-lint-bare-fail "1" "$(printf 'save が extract.sh を呼ぶ\n' | bun "$LL" >/dev/null 2>&1; echo $?)"
+has link-lint-names-token "extract.sh" "$(printf 'save が extract.sh を呼ぶ\n' | bun "$LL" 2>&1)"
 # wrapped in backticks -> clean. (SC2016: the literal backticks are test data, no expansion wanted.)
 # shellcheck disable=SC2016
-eq link-lint-backtick-clean "0" "$(printf 'save が `extract.sh` を呼ぶ\n' | bash "$LL" >/dev/null 2>&1; echo $?)"
+eq link-lint-backtick-clean "0" "$(printf 'save が `extract.sh` を呼ぶ\n' | bun "$LL" >/dev/null 2>&1; echo $?)"
 # inside a fenced code block -> clean (code is not linkified).
 # shellcheck disable=SC2016
-eq link-lint-fence-clean "0" "$(printf '```\nextract.sh all\n```\nplain\n' | bash "$LL" >/dev/null 2>&1; echo $?)"
+eq link-lint-fence-clean "0" "$(printf '```\nextract.sh all\n```\nplain\n' | bun "$LL" >/dev/null 2>&1; echo $?)"
 # an explicit [text](url) link -> clean (intentional link, not an accidental one).
-eq link-lint-link-clean "0" "$(printf '[State](https://app.notion.com/p/abc123)\n' | bash "$LL" >/dev/null 2>&1; echo $?)"
+eq link-lint-link-clean "0" "$(printf '[State](https://app.notion.com/p/abc123)\n' | bun "$LL" >/dev/null 2>&1; echo $?)"
 # prose with periods (versions / scores) is NOT a false positive.
-eq link-lint-prose-clean "0" "$(printf 'v0.2.0 をリリース。総合70/100。Node20警告。\n' | bash "$LL" >/dev/null 2>&1; echo $?)"
+eq link-lint-prose-clean "0" "$(printf 'v0.2.0 をリリース。総合70/100。Node20警告。\n' | bun "$LL" >/dev/null 2>&1; echo $?)"
 
 echo "=== integrity (deterministic substrate self-monitoring: malformed/dup-id/dup-active/State-link) ==="
-# shellcheck disable=SC1091 # dynamic source path; the file exists at runtime
-. "$HERE/../scripts/_lib/integrity.sh"
+INTG="$HERE/../scripts/_lib/integrity.ts"
 INTROOT=$(mktemp -d "${TMPDIR:-/tmp}/iroha-int.XXXXXX")
 mkdir -p "$INTROOT/.iroha"
 # clean baseline: two distinct-topic Active decisions + a session State links to -> clean (exit 0).
@@ -488,14 +486,14 @@ printf '%s\n' '**Latest (2026-06-25):** x.' '## Recent sessions' \
   '- [2026-06-25 — x](https://www.notion.so/38a822c6938a811eb58ad62cc504920a)' \
   '## Unfinished / Next' '- [ ] y' '## Decisions' '- [Decisions DB](https://www.notion.so/128c8c81e60d4443a82cabfd84eb243f)' \
   >"$INTROOT/.iroha/state.md"
-eq integrity-clean "0" "$(iroha_integrity "$INTROOT" >/dev/null 2>&1; echo $?)"
+eq integrity-clean "0" "$(bun "$INTG" "$INTROOT" >/dev/null 2>&1; echo $?)"
 # the Decisions-DB link in "## Decisions" must NOT be mistaken for a dangling session link.
-hasnt integrity-ignores-decisions-link "128c8c81" "$(iroha_integrity "$INTROOT" 2>&1)"
+hasnt integrity-ignores-decisions-link "128c8c81" "$(bun "$INTG" "$INTROOT" 2>&1)"
 # duplicate Active topic (the rot that most degrades recall) -> flagged.
 printf '%s\n' '{"type":"decision","id":"d3","topic":"連結","status":"Active","date":"2026-06-25","title":"連結: dup"}' \
   >>"$INTROOT/.iroha/index.ndjson"
-eq integrity-dup-active-fail "1" "$(iroha_integrity "$INTROOT" >/dev/null 2>&1; echo $?)"
-has integrity-dup-active-msg "duplicate Active" "$(iroha_integrity "$INTROOT" 2>&1)"
+eq integrity-dup-active-fail "1" "$(bun "$INTG" "$INTROOT" >/dev/null 2>&1; echo $?)"
+has integrity-dup-active-msg "duplicate Active" "$(bun "$INTG" "$INTROOT" 2>&1)"
 # a superseded row on the same topic is history, NOT a duplicate-Active conflict (keep the
 # session row State links to, so only the superseded-vs-active rule is under test here).
 {
@@ -503,34 +501,34 @@ has integrity-dup-active-msg "duplicate Active" "$(iroha_integrity "$INTROOT" 2>
   printf '%s\n' '{"type":"decision","id":"d0","topic":"連結","status":"Superseded","date":"2026-06-20","title":"連結: 旧"}'
   printf '%s\n' '{"type":"session","id":"38a822c6-938a-811e-b58a-d62cc504920a","topic":"","status":"Complete","date":"2026-06-25","title":"2026-06-25 — x"}'
 } >"$INTROOT/.iroha/index.ndjson"
-eq integrity-superseded-ok "0" "$(iroha_integrity "$INTROOT" >/dev/null 2>&1; echo $?)"
+eq integrity-superseded-ok "0" "$(bun "$INTG" "$INTROOT" >/dev/null 2>&1; echo $?)"
 # valid supersede lineage: the Active row's `supersedes` points to a predecessor that exists -> clean.
 {
   printf '%s\n' '{"type":"decision","id":"d0","topic":"連結","status":"Superseded","date":"2026-06-20","title":"連結: 旧"}'
   printf '%s\n' '{"type":"decision","id":"d1","topic":"連結","status":"Active","date":"2026-06-24","title":"連結: URL","supersedes":"d0"}'
   printf '%s\n' '{"type":"session","id":"38a822c6-938a-811e-b58a-d62cc504920a","topic":"","status":"Complete","date":"2026-06-25","title":"2026-06-25 — x"}'
 } >"$INTROOT/.iroha/index.ndjson"
-eq integrity-lineage-ok "0" "$(iroha_integrity "$INTROOT" >/dev/null 2>&1; echo $?)"
+eq integrity-lineage-ok "0" "$(bun "$INTG" "$INTROOT" >/dev/null 2>&1; echo $?)"
 # dangling supersedes: points to an id missing from the index -> flagged (broken /iroha:history chain).
 printf '%s\n' '{"type":"decision","id":"d9","topic":"x","status":"Active","date":"2026-06-25","title":"x","supersedes":"ghost"}' \
   >>"$INTROOT/.iroha/index.ndjson"
-has integrity-dangling-supersedes "broken lineage" "$(iroha_integrity "$INTROOT" 2>&1)"
+has integrity-dangling-supersedes "broken lineage" "$(bun "$INTG" "$INTROOT" 2>&1)"
 # duplicate id (upsert failed to replace) -> flagged.
 printf '%s\n' '{"type":"decision","id":"d1","topic":"other","status":"Active","date":"2026-06-25","title":"other"}' \
   >>"$INTROOT/.iroha/index.ndjson"
-has integrity-dup-id "duplicate index id" "$(iroha_integrity "$INTROOT" 2>&1)"
+has integrity-dup-id "duplicate index id" "$(bun "$INTG" "$INTROOT" 2>&1)"
 # malformed index line -> flagged (we WANT this loud, unlike the tolerant extract path).
 printf '%s\n' '{"type":"decision","id":"d1","topic":"x","status":"Active","date":"2026-06-24","title":"x"}' >"$INTROOT/.iroha/index.ndjson"
 printf '{"type":"decision"\n' >>"$INTROOT/.iroha/index.ndjson"
-has integrity-malformed "malformed index line" "$(iroha_integrity "$INTROOT" 2>&1)"
+has integrity-malformed "malformed index line" "$(bun "$INTG" "$INTROOT" 2>&1)"
 # dangling State->session link (State ahead of saved sessions: the memory-hole class) -> flagged.
 printf '%s\n' '{"type":"session","id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","topic":"","status":"Complete","date":"2026-06-25","title":"a"}' >"$INTROOT/.iroha/index.ndjson"
 printf '%s\n' '**Latest:** x.' '## Recent sessions' '- [y](https://www.notion.so/ffffffffffffffffffffffffffffffff)' '## Decisions' '- [DB](u)' >"$INTROOT/.iroha/state.md"
-has integrity-dangling-state "State ahead of saved sessions" "$(iroha_integrity "$INTROOT" 2>&1)"
+has integrity-dangling-state "State ahead of saved sessions" "$(bun "$INTG" "$INTROOT" 2>&1)"
 rm -rf "$INTROOT"
 # the project's REAL committed substrate must be clean (continuous self-monitoring in CI: a drifted
 # index or a State-ahead-of-sessions hole can never reach green).
-eq integrity-real-substrate "0" "$(iroha_integrity "$HERE/.." >/dev/null 2>&1; echo $?)"
+eq integrity-real-substrate "0" "$(bun "$INTG" "$HERE/.." >/dev/null 2>&1; echo $?)"
 
 echo "=== result: $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]
