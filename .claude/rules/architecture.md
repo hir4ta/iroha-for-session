@@ -43,7 +43,8 @@
   「なぜ」を書かず Decisions へリンク。
 - **リコールは2段 (Adaptive-RAG ルーティング)**。①常時の**安価ローカル前段**=
   `scripts/_lib/recall.sh :: iroha_recall_local`。**FREE tier**(既定・無依存)= `search.sh` の
-  pure-jq **BM25**(CJK 2-gram トークナイズ・status/type 重み)。LLM もネットワークも要らず即時・
+  pure-jq **BM25**(CJK 2-gram トークナイズ・status/type 重み・英語機能語ストップワード除去=recall 中立で
+  romaji 識別子 `iroha-for-session` 由来の "for" 等が cross-domain 偽一致するのを根治)。LLM もネットワークも要らず即時・
   オフライン・無料で、UserPromptSubmit hook が毎プロンプト proactively に注入する。**HEAVY tier**
   (opt-in・`rerank_enabled`=true で arm)= **BM25 ∪ dense**(`scripts/embed.mjs`=ローカル bi-encoder
   `multilingual-e5-small`)で候補生成し、cross-encoder(`scripts/rerank.mjs`=`bge-reranker-v2-m3`)が

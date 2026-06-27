@@ -64,7 +64,13 @@ iroha_search() { # iroha_search <root> <query> [type] [topN] [minScore]
         (if (.ch|length)<=1 then [(.ch|implode)]
          else [range(0; (.ch|length)-1) as $i | (.ch[$i:$i+2]|implode)] end)
       else [] end;
-    def tokenize: ((runs | map(tok_of_run)) | add) // [];
+    # Ultra-common English function words carry no lexical signal. Romaji identifiers like
+    # "iroha-for-session" inject them into the corpus, so without this a cross-domain query
+    # ("terraform provider configuration for gcp") leaks on the shared "for". CJK 2-grams are
+    # never in this set, so Japanese recall is untouched; meaningful short tokens (gh/pr/ci) too.
+    def stop: {"a":1,"an":1,"the":1,"for":1,"of":1,"to":1,"in":1,"on":1,"at":1,"by":1,"as":1,
+               "and":1,"or":1,"is":1,"are":1,"be":1,"with":1,"it":1,"this":1,"that":1,"from":1};
+    def tokenize: ((runs | map(tok_of_run)) | add) // [] | map(select(. as $t | (stop | has($t)) | not));
 
     ($q | tokenize | unique) as $qt
     | [ .[] | select(($type=="") or (.type==$type)) ] as $docs
