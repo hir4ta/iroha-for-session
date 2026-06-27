@@ -15,10 +15,10 @@ Report in the **user's conversation language**.
 ## 1. Preconditions
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
-bash "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
-bash "$L" get session_ds_id
-bash "$L" get-state "$PWD"        # the State page id (may be empty on a fresh project)
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
+bun "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
+bun "$L" get session_ds_id
+bun "$L" get-state "$PWD"        # the State page id (may be empty on a fresh project)
 bash "$IDX" list "$PWD" decision  # COMPLETE list of decision keys — the enumeration search lacks
 bash "$IDX" list "$PWD" session   # COMPLETE list of session keys
 ```
@@ -54,7 +54,7 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
 - **D. State drift** — first run the **deterministic** lint on the local mirror (byte-identical
   to the Notion page under save-session's single-source rule), then `notion-fetch` the page for
   the judgement checks below:
-  `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$(bash "$L" state-md-path "$PWD")"`
+  `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/state-lint.sh" "$(bun "$L" state-md-path "$PWD")"`
   flags the **escape-leak** and **dropped-section** classes mechanically (the two that recurred);
   treat any issue it prints as a high-confidence finding. Then compare against Notion:
   - its header summary vs the newest Session's `Summary` (stale if it names an older
@@ -101,7 +101,7 @@ so**: results are then best-effort, not complete. Offer to backfill: fetch the k
   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/integrity.sh" "$PWD"` — treat anything it prints as
   high-confidence. **Also validate the cached ids** — a non-empty but malformed id (a leftover
   `DSID` placeholder, a truncated value) passes every "is it set?" check yet silently breaks recall,
-  this audit, and decision saves (a real dogfood defect): `bash "$L" validate` (offline shape check),
+  this audit, and decision saves (a real dogfood defect): `bun "$L" validate` (offline shape check),
   then confirm each `*_ds_id` actually **resolves** by `notion-fetch`-ing `collection://<id>` —
   flag any that 404 (config points at a deleted / wrong data source). Then the Notion reconciliation the offline floor cannot do: enumerate the Decisions
   DB as completely as the free plan allows (several broad `notion-search` passes over `decisions_ds_id`
@@ -130,7 +130,7 @@ report), apply **only the safe, reversible** fixes and re-report each:
 - **D (summary / recent / escape / missing sections)** — rewrite the State following
   save-session §8's **single-source** rule: compose the body ONCE (summary + `## Recent
   sessions` + `## Unfinished / Next` + `## Decisions` link, real newlines, no literal
-  `\n`/`\t`), write it to `<repo>/.iroha/state.md` (`bash "$L" state-md-path "$PWD"`), then
+  `\n`/`\t`), write it to `<repo>/.iroha/state.md` (`bun "$L" state-md-path "$PWD"`), then
   `notion-update-page` `replace_content` with that **same** text so the page and mirror match;
   remind the user to commit it.
 - **D (stale unfinished)** — propose dropping or re-confirming each stale `- [ ]`; apply
@@ -146,8 +146,8 @@ report), apply **only the safe, reversible** fixes and re-report each:
   any index row whose id 404s. Re-run `integrity.sh` and the Notion diff until they reconcile. Remind
   the user to commit `.iroha/index.ndjson`. This is the **reindex repair**; it is reversible (it only
   adds/refreshes keys — Notion stays the content source of truth) so it is safe to apply on confirmation.
-  If `config.sh validate` flagged a malformed id, repair it: re-run `/iroha:init` against the same
-  parent page (it re-reads the real ids), or set the correct id directly with `bash "$L" set <key> <id>`.
+  If `config.ts validate` flagged a malformed id, repair it: re-run `/iroha:init` against the same
+  parent page (it re-reads the real ids), or set the correct id directly with `bun "$L" set <key> <id>`.
 - **C / E / F** — these need human judgment (delete? rewrite? demote?). Report them with a
   recommended action but **do not** auto-apply; ask.
 

@@ -44,8 +44,8 @@ case "$cmd" in
 esac
 
 # 3. Consent: off unless /iroha:init enabled recall (a fresh install pays nothing).
-L="${PR}/scripts/_lib/config.sh"
-[ "$(bash "$L" get recall_enabled 2>/dev/null)" = "true" ] || exit 0
+L="${PR}/scripts/_lib/config.ts"
+[ "$(bun "$L" get recall_enabled 2>/dev/null)" = "true" ] || exit 0
 [ -f "$root/.iroha/index.ndjson" ] || exit 0
 
 # 4. Build the query from the commit SUBJECT (the strongest topic signal) + the basenames of the

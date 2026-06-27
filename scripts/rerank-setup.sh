@@ -58,7 +58,7 @@ if [ "$rc" != 0 ]; then
 fi
 
 echo "4/4  Arming the heavy recall tier (rerank_enabled=true) …"
-bash "$PR/scripts/_lib/config.sh" set rerank_enabled true
+bun "$PR/scripts/_lib/config.ts" set rerank_enabled true
 
 cat <<EOF
 
@@ -67,7 +67,7 @@ promotes the strong matches above the BM25 advisory list (higher recall AND prec
   reranker:  $MODEL ($DTYPE)
   embedder:  $EMODEL ($EDTYPE)
   model dir: $MODELDIR
-  disable:   IROHA_RERANK_DISABLE=1  (per session)  /  config.sh set rerank_enabled false  (persistent)
+  disable:   IROHA_RERANK_DISABLE=1  (per session)  /  config.ts set rerank_enabled false  (persistent)
   verify:    IROHA_MODEL_DIR=$MODELDIR bash tests/hybrid-eval.sh   (recall+abstention end-to-end)
              IROHA_MODEL_DIR=$MODELDIR bash tests/rerank-eval.sh   (cross-encoder unit precision)
 EOF

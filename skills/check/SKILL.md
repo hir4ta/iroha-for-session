@@ -17,8 +17,8 @@ reports, never writes. Report in the **user's conversation language**.
 ## 1. Preconditions
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
-bash "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
+bun "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "NOT_A_GIT_REPO"; }  # stop if not
 ```
 

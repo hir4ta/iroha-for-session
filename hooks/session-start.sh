@@ -9,20 +9,20 @@ set -u
 
 input=$(cat)
 command -v jq >/dev/null 2>&1 || exit 0
+command -v bun >/dev/null 2>&1 || exit 0
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
 source=$(printf '%s' "$input" | jq -r '.source // empty')
 [ -z "$cwd" ] && exit 0
 
 [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || exit 0
-# shellcheck disable=SC1091 # dynamic source; resolved at runtime via CLAUDE_PLUGIN_ROOT
-. "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
+CFG="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"
 
 ctx=""
 projdir="$HOME/.claude/projects/$(printf '%s' "$cwd" | sed 's#/#-#g')"
 
 # 1. Continuity: the project's last saved State (local mirror from /save-session).
-state_md="$(iroha_state_md_path "$cwd")"
+state_md="$(bun "$CFG" state-md-path "$cwd")"
 if [ -s "$state_md" ]; then
   # The State mirror is committed to the repo and shared with the team, so treat its
   # body as untrusted reference data — never as instructions — and cap its size
@@ -69,7 +69,7 @@ fi
 # we only make forgetting loud and the backlog complete). Skipped on compaction (a mid-session
 # restart, not a fresh start).
 if [ "$source" != "compact" ]; then
-  saved_dir="$(iroha_saved_dir)"
+  saved_dir="$(bun "$CFG" saved-dir)"
   ex="${CLAUDE_PLUGIN_ROOT}/scripts/extract.sh"
   # Boundary = the newest "saved" marker. Sessions older than the last save were left unsaved
   # deliberately, so only the backlog *since* the last save is surfaced (no nagging about ancient

@@ -22,7 +22,7 @@ API token.
 2. **Check existing config:**
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" get session_ds_id
+   bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts" get session_ds_id
    ```
 
    If it prints an id, iroha is already initialized — say so and stop unless the
@@ -119,17 +119,17 @@ API token.
 7. **Save the ids:**
 
    ```bash
-   L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
-   bash "$L" set container_page_id "<PAGE_ID>"
-   bash "$L" set session_db_id   "<SESSIONS_DATABASE_ID>"
-   bash "$L" set session_ds_id   "<SESSIONS_DATA_SOURCE_ID>"
-   bash "$L" set decisions_db_id "<DECISIONS_DATABASE_ID>"
-   bash "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
-   bash "$L" set projects_db_id  "<PROJECTS_DATABASE_ID>"
-   bash "$L" set projects_ds_id  "<PROJECTS_DATA_SOURCE_ID>"
-   bash "$L" set states_folder_id  "<STATES_PAGE_ID>"     # grouping pages from step 5 — keep
-   bash "$L" set digests_folder_id "<DIGESTS_PAGE_ID>"    # the container tidy as it grows
-   bash "$L" set recall_enabled  true   # arm enforced JIT recall (the UserPromptSubmit hook
+   L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"
+   bun "$L" set container_page_id "<PAGE_ID>"
+   bun "$L" set session_db_id   "<SESSIONS_DATABASE_ID>"
+   bun "$L" set session_ds_id   "<SESSIONS_DATA_SOURCE_ID>"
+   bun "$L" set decisions_db_id "<DECISIONS_DATABASE_ID>"
+   bun "$L" set decisions_ds_id "<DECISIONS_DATA_SOURCE_ID>"
+   bun "$L" set projects_db_id  "<PROJECTS_DATABASE_ID>"
+   bun "$L" set projects_ds_id  "<PROJECTS_DATA_SOURCE_ID>"
+   bun "$L" set states_folder_id  "<STATES_PAGE_ID>"     # grouping pages from step 5 — keep
+   bun "$L" set digests_folder_id "<DIGESTS_PAGE_ID>"    # the container tidy as it grows
+   bun "$L" set recall_enabled  true   # arm enforced JIT recall (the UserPromptSubmit hook
                                         # stays idle until this is true — so a fresh install
                                         # that never ran init costs nothing per prompt)
    ```

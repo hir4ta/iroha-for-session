@@ -15,9 +15,9 @@ writes. Report in the **user's conversation language**.
 ## 1. Preconditions
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"; IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
 SEARCH="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/search.sh"; ROOT="$PWD"
-bash "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
+bun "$L" get decisions_ds_id    # empty -> tell the user to run /iroha:init, then stop
 ```
 
 If `decisions_ds_id` is empty, tell the user to run `/iroha:init` and stop.

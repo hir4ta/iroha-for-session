@@ -28,13 +28,13 @@ iroha_recall_local() { # <root> <query> [topn] -> JSON lines, ranked
   local pr idx L
   pr="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   idx="$root/.iroha/index.ndjson"
-  L="$pr/scripts/_lib/config.sh"
+  L="$pr/scripts/_lib/config.ts"
   [ -f "$idx" ] || return 0
 
   # Heavy tier on only when node is present AND (armed in config OR forced for eval).
   local heavy=0
   if [ "${IROHA_RERANK_DISABLE:-}" != "1" ] && command -v node >/dev/null 2>&1 \
-     && { [ "$(bash "$L" get rerank_enabled 2>/dev/null)" = "true" ] \
+     && { [ "$(bun "$L" get rerank_enabled 2>/dev/null)" = "true" ] \
           || [ "${IROHA_RECALL_FORCE_HEAVY:-}" = "1" ]; }; then
     heavy=1
   fi

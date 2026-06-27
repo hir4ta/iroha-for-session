@@ -15,10 +15,10 @@ materially. Write Notion content in the user's conversation language.
 ## 1. Preconditions
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
-bash "$L" get projects_ds_id      # empty -> tell the user to run /iroha:init, then stop
-bash "$L" get container_page_id
-bash "$L" get-state "$PWD"        # this project's State page id (link to it from the row, below)
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"
+bun "$L" get projects_ds_id      # empty -> tell the user to run /iroha:init, then stop
+bun "$L" get container_page_id
+bun "$L" get-state "$PWD"        # this project's State page id (link to it from the row, below)
 ```
 
 ## 2. Scan the repo and draft the profile (read the real stack, do not guess)

@@ -38,8 +38,8 @@ if [ "${1:-}" = "--selfcheck" ]; then
   # When run by hand, CLAUDE_PLUGIN_ROOT is unset (the harness sets it for the real hook); derive
   # the plugin root from this script's own path so --selfcheck works from a plain shell.
   [ -z "$PR" ] && PR="$(unset CDPATH; cd -- "$(dirname -- "$0")/.." 2>/dev/null && pwd)"
-  L="$PR/scripts/_lib/config.sh"
-  if [ -f "$L" ] && [ -n "$(bash "$L" get decisions_ds_id 2>/dev/null)" ]; then
+  L="$PR/scripts/_lib/config.ts"
+  if [ -f "$L" ] && [ -n "$(bun "$L" get decisions_ds_id 2>/dev/null)" ]; then
     p PASS "config initialized"
   else
     p FAIL "config initialized (run /iroha:init)"; ok=0
@@ -49,7 +49,7 @@ if [ "${1:-}" = "--selfcheck" ]; then
   # decision saves. Make that loud here — this is the guard whose absence let "decisions_ds_id=DSID"
   # hide while proactive recall (which reads the local index, not this id) kept working.
   if [ -f "$L" ]; then
-    cfg_issues="$(bash "$L" validate 2>/dev/null)"
+    cfg_issues="$(bun "$L" validate 2>/dev/null)"
     if [ -z "$cfg_issues" ]; then
       p PASS "config ids well-formed"
     else
@@ -57,7 +57,7 @@ if [ "${1:-}" = "--selfcheck" ]; then
       printf '%s\n' "$cfg_issues" | while IFS= read -r line; do printf '       %s\n' "$line"; done
     fi
   fi
-  if [ -f "$L" ] && [ "$(bash "$L" get recall_enabled 2>/dev/null)" = "true" ]; then
+  if [ -f "$L" ] && [ "$(bun "$L" get recall_enabled 2>/dev/null)" = "true" ]; then
     p PASS "recall_enabled=true"
   else
     p INFO "recall_enabled not true (proactive recall idle; /iroha:init enables it)"
@@ -96,8 +96,8 @@ case "$gate" in
 esac
 
 # 3. Consent: off unless /iroha:init enabled recall (a fresh install pays nothing per prompt).
-L="${PR}/scripts/_lib/config.sh"
-[ "$(bash "$L" get recall_enabled 2>/dev/null)" = "true" ] || exit 0
+L="${PR}/scripts/_lib/config.ts"
+[ "$(bun "$L" get recall_enabled 2>/dev/null)" = "true" ] || exit 0
 
 # 4. Cache: one recall per identical prompt per session (no re-fire on retries/repeats).
 cache="${TMPDIR:-/tmp}/iroha-recall/${sid:-nosid}"

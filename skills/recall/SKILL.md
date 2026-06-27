@@ -15,9 +15,9 @@ directly — there is no local copy to drift.
 ## 1. Load the data source ids
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
-bash "$L" get decisions_ds_id
-bash "$L" get session_ds_id
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"
+bun "$L" get decisions_ds_id
+bun "$L" get session_ds_id
 ```
 
 ## 2. Search Notion

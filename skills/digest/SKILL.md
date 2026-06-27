@@ -15,11 +15,11 @@ Notion MCP. Write Notion content in the **user's conversation language**.
 ## 1. Preconditions
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
-bash "$L" get session_ds_id      # empty -> tell the user to run /iroha:init, then stop
-bash "$L" get decisions_ds_id
-bash "$L" get container_page_id
-bash "$L" get digests_folder_id  # the Digests grouping page (fall back to container if empty)
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"
+bun "$L" get session_ds_id      # empty -> tell the user to run /iroha:init, then stop
+bun "$L" get decisions_ds_id
+bun "$L" get container_page_id
+bun "$L" get digests_folder_id  # the Digests grouping page (fall back to container if empty)
 ```
 
 ## 2. Resolve the period
@@ -64,7 +64,7 @@ bash "$IDX" list "$PWD" decision \
   you cap, say so in the digest (never silently drop).
 - **Decisions** — the enumeration above already keeps only `Status = Active` (mention a
   superseded one only if it was superseded *within* the period). `notion-fetch` each for Why/Date.
-- **Still-open** — `notion-fetch` the project `State` page (`bash "$L" get-state "$PWD"`)
+- **Still-open** — `notion-fetch` the project `State` page (`bun "$L" get-state "$PWD"`)
   and read its **Unfinished / Next** list.
 - **Empty/stale index fallback** — a workspace created before the index existed lists nothing.
   Then fall back to `notion-search` over `session_ds_id` / `decisions_ds_id` with

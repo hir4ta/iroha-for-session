@@ -119,19 +119,18 @@ rm -f "$BROKEN"
 echo "=== config helper (roundtrip, self-heal, isolated dir) ==="
 IROHA_CONFIG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfg.XXXXXX")"
 export IROHA_CONFIG_DIR
-# shellcheck disable=SC1091 # dynamic source path; the file exists at runtime
-. "$HERE/../scripts/_lib/config.sh"
-iroha_config_set session_db_id "DB123"
-eq config-set-get "DB123" "$(iroha_config_get session_db_id)"
-eq config-missing-empty "" "$(iroha_config_get nonexistent_key)"
-iroha_config_set_state_page "/repo/foo" "PAGE9"
-eq config-state-roundtrip "PAGE9" "$(iroha_config_get_state_page "/repo/foo")"
-eq config-state-missing "" "$(iroha_config_get_state_page "/repo/bar")"
+CV="$HERE/../scripts/_lib/config.ts"
+bun "$CV" set session_db_id "DB123"
+eq config-set-get "DB123" "$(bun "$CV" get session_db_id)"
+eq config-missing-empty "" "$(bun "$CV" get nonexistent_key)"
+bun "$CV" set-state "/repo/foo" "PAGE9"
+eq config-state-roundtrip "PAGE9" "$(bun "$CV" get-state "/repo/foo")"
+eq config-state-missing "" "$(bun "$CV" get-state "/repo/bar")"
 # a corrupt config.json self-heals instead of locking up every get/set
 printf 'GARBAGE' >"$IROHA_CONFIG_DIR/config.json"
-eq config-self-heal-get "" "$(iroha_config_get session_db_id)"
-iroha_config_set session_db_id "DB2"
-eq config-self-heal-set "DB2" "$(iroha_config_get session_db_id)"
+eq config-self-heal-get "" "$(bun "$CV" get session_db_id)"
+bun "$CV" set session_db_id "DB2"
+eq config-self-heal-set "DB2" "$(bun "$CV" get session_db_id)"
 rm -rf "$IROHA_CONFIG_DIR"
 
 echo "=== config validate (id shape: catch placeholder/truncated ids like the DSID class) ==="
@@ -139,42 +138,43 @@ echo "=== config validate (id shape: catch placeholder/truncated ids like the DS
 # loudly. This is the guard whose absence let "decisions_ds_id=DSID" silently break /recall +
 # decision saves while every non-empty check still passed. Isolated config dir per case.
 CFGV="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfgv.XXXXXX")"
-CV="$HERE/../scripts/_lib/config.sh"
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_ds_id   "6b5fc3c8-de78-4c5f-afc6-2e1e226f9378" >/dev/null
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_db_id "128c8c81e60d4443a82cabfd84eb243f" >/dev/null
-eq config-validate-clean "0" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+CV="$HERE/../scripts/_lib/config.ts"
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set session_ds_id   "6b5fc3c8-de78-4c5f-afc6-2e1e226f9378" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set decisions_db_id "128c8c81e60d4443a82cabfd84eb243f" >/dev/null
+eq config-validate-clean "0" "$(IROHA_CONFIG_DIR="$CFGV" bun "$CV" validate >/dev/null 2>&1; echo $?)"
 # the exact dogfood defect: a placeholder data-source id must fail, naming the offending key.
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "DSID" >/dev/null
-eq config-validate-placeholder-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
-has config-validate-names-bad-key "decisions_ds_id" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate 2>&1)"
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set decisions_ds_id "DSID" >/dev/null
+eq config-validate-placeholder-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bun "$CV" validate >/dev/null 2>&1; echo $?)"
+has config-validate-names-bad-key "decisions_ds_id" "$(IROHA_CONFIG_DIR="$CFGV" bun "$CV" validate 2>&1)"
 # a malformed (non-32-hex) database id is caught too.
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_db_id "not-32-hex" >/dev/null
-eq config-validate-bad-dbid-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set decisions_ds_id "34809d44-346f-4d4f-9fd6-8c9c2796e2c0" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set session_db_id "not-32-hex" >/dev/null
+eq config-validate-bad-dbid-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bun "$CV" validate >/dev/null 2>&1; echo $?)"
 # a malformed grouping-folder id is caught too (same 32-hex page-id class as container / db ids).
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set session_db_id "c58dc1018eb54393bc67bd1a6fec6551" >/dev/null
-IROHA_CONFIG_DIR="$CFGV" bash "$CV" set states_folder_id "STATES" >/dev/null
-eq config-validate-bad-folder-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate >/dev/null 2>&1; echo $?)"
-has config-validate-folder-named "states_folder_id" "$(IROHA_CONFIG_DIR="$CFGV" bash "$CV" validate 2>&1)"
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set session_db_id "c58dc1018eb54393bc67bd1a6fec6551" >/dev/null
+IROHA_CONFIG_DIR="$CFGV" bun "$CV" set states_folder_id "STATES" >/dev/null
+eq config-validate-bad-folder-fail "1" "$(IROHA_CONFIG_DIR="$CFGV" bun "$CV" validate >/dev/null 2>&1; echo $?)"
+has config-validate-folder-named "states_folder_id" "$(IROHA_CONFIG_DIR="$CFGV" bun "$CV" validate 2>&1)"
 # a fresh, un-initialized config (no ids yet) has nothing to check -> clean (a new install never false-fails).
 CFGV2="$(mktemp -d "${TMPDIR:-/tmp}/iroha-cfgv2.XXXXXX")"
-eq config-validate-fresh-clean "0" "$(IROHA_CONFIG_DIR="$CFGV2" bash "$CV" validate >/dev/null 2>&1; echo $?)"
+eq config-validate-fresh-clean "0" "$(IROHA_CONFIG_DIR="$CFGV2" bun "$CV" validate >/dev/null 2>&1; echo $?)"
 rm -rf "$CFGV" "$CFGV2"
 
 echo "=== transcript-path (deterministic locate; bounded find fallback; never globs) ==="
 TPHOME=$(mktemp -d "${TMPDIR:-/tmp}/iroha-tp.XXXXXX")
+TPHOME=$(cd "$TPHOME" && pwd)   # normalize away any TMPDIR trailing-slash artifact (TS path.join does too)
 TPROOT="/Users/demo/Projects/app"
 TPHASH=$(printf '%s' "$TPROOT" | sed 's#/#-#g')   # cwd -> project dir name (each "/" -> "-")
 mkdir -p "$TPHOME/.claude/projects/$TPHASH" "$TPHOME/.claude/projects/-other-proj"
 : >"$TPHOME/.claude/projects/$TPHASH/sidA.jsonl"
 : >"$TPHOME/.claude/projects/-other-proj/sidB.jsonl"
 # deterministic hit: the path is derived from the cwd hash, with no glob over every project dir.
-eq tp-deterministic "$TPHOME/.claude/projects/$TPHASH/sidA.jsonl" "$(HOME="$TPHOME" iroha_transcript_path "$TPROOT" sidA)"
+eq tp-deterministic "$TPHOME/.claude/projects/$TPHASH/sidA.jsonl" "$(HOME="$TPHOME" bun "$CV" transcript-path "$TPROOT" sidA)"
 # fallback: the cwd hash misses (project root moved since launch) -> a bounded find locates it by id.
-eq tp-find-fallback "$TPHOME/.claude/projects/-other-proj/sidB.jsonl" "$(HOME="$TPHOME" iroha_transcript_path "/moved/since/launch" sidB)"
+eq tp-find-fallback "$TPHOME/.claude/projects/-other-proj/sidB.jsonl" "$(HOME="$TPHOME" bun "$CV" transcript-path "/moved/since/launch" sidB)"
 # miss: an unknown session id returns empty (the caller stops and tells the user, never guesses).
-eq tp-miss "" "$(HOME="$TPHOME" iroha_transcript_path "$TPROOT" nosuchsid)"
+eq tp-miss "" "$(HOME="$TPHOME" bun "$CV" transcript-path "$TPROOT" nosuchsid)"
 rm -rf "$TPHOME"
 
 echo "=== session-start hook (state injection + save reminder) ==="
@@ -287,9 +287,9 @@ echo "=== recall-inject hook (local BM25 recall: gate, consent, cache, abstain, 
 RIDATA=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data.XXXXXX")
 RIPROJ=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-proj.XXXXXX")   # project root: index at $RIPROJ/.iroha/
 RICACHE=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-cache.XXXXXX")
-IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set decisions_ds_id "DSID" >/dev/null
-IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set session_ds_id "SSID" >/dev/null
-IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set recall_enabled true >/dev/null
+IROHA_CONFIG_DIR="$RIDATA" bun "$HERE/../scripts/_lib/config.ts" set decisions_ds_id "DSID" >/dev/null
+IROHA_CONFIG_DIR="$RIDATA" bun "$HERE/../scripts/_lib/config.ts" set session_ds_id "SSID" >/dev/null
+IROHA_CONFIG_DIR="$RIDATA" bun "$HERE/../scripts/_lib/config.ts" set recall_enabled true >/dev/null
 # a one-row local index: a Japanese decision the hook must surface for a matching prompt.
 mkdir -p "$RIPROJ/.iroha"
 printf '%s\n' '{"type":"decision","id":"389822c6-938a-812a-86fc-f709b3428ec2","topic":"連結","status":"Active","date":"2026-06-24","title":"連結: relation でなく URL","project":"demo","text":"MCP の relation 書き込みに既知バグがあるので URL プロパティで連結する"}' \
@@ -325,7 +325,7 @@ eq ri-not-initialized "" "$(printf '{"prompt":"relationプロパティで連結�
     bash "$HERE/../hooks/recall-inject.sh")"
 # consent gate: initialized but recall_enabled not set -> no injection (distribution-safe default)
 RIDATA3=$(mktemp -d "${TMPDIR:-/tmp}/iroha-ri-data3.XXXXXX")
-IROHA_CONFIG_DIR="$RIDATA3" bash "$HERE/../scripts/_lib/config.sh" set decisions_ds_id "DSID" >/dev/null
+IROHA_CONFIG_DIR="$RIDATA3" bun "$HERE/../scripts/_lib/config.ts" set decisions_ds_id "DSID" >/dev/null
 eq ri-gate-recall-disabled "" "$(printf '{"prompt":"relationプロパティで連結すべきか","session_id":"sid6","cwd":"%s"}' "$RIPROJ" |
   env CLAUDE_PLUGIN_ROOT="$HERE/.." IROHA_CONFIG_DIR="$RIDATA3" TMPDIR="$RICACHE" \
     bash "$HERE/../hooks/recall-inject.sh")"
@@ -345,7 +345,7 @@ has ri-selfcheck-derives-root "READY" "$sc2"
 # to the pure-bash BM25 advisory result (no regression). The precision win itself is measured in
 # tests/rerank-eval.sh, which runs only where the model is installed.
 echo "=== rerank gate (opt-in precision filter: contract + graceful fallback to BM25) ==="
-IROHA_CONFIG_DIR="$RIDATA" bash "$HERE/../scripts/_lib/config.sh" set rerank_enabled true >/dev/null
+IROHA_CONFIG_DIR="$RIDATA" bun "$HERE/../scripts/_lib/config.ts" set rerank_enabled true >/dev/null
 RERANK="$HERE/../scripts/rerank.mjs"
 if command -v node >/dev/null 2>&1; then
   # contract: empty docs -> abstain ([], exit 0) BEFORE any model load.

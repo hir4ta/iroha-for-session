@@ -17,11 +17,11 @@ connected Notion MCP. Write Notion content in the **user's conversation language
 Confirm Notion MCP is connected, then load the cached ids:
 
 ```bash
-L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh"
-bash "$L" get session_ds_id    # empty -> tell the user to run /iroha:init, then stop
-bash "$L" get decisions_ds_id
-bash "$L" get container_page_id
-[ -e "$(bash "$L" saved-dir)/${CLAUDE_SESSION_ID}" ] && echo "ALREADY_SAVED"
+L="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts"
+bun "$L" get session_ds_id    # empty -> tell the user to run /iroha:init, then stop
+bun "$L" get decisions_ds_id
+bun "$L" get container_page_id
+[ -e "$(bun "$L" saved-dir)/${CLAUDE_SESSION_ID}" ] && echo "ALREADY_SAVED"
 ```
 
 **Re-save guard (idempotency).** If the last line prints `ALREADY_SAVED`, this session
@@ -48,7 +48,7 @@ only falls back to a bounded `find` if the project root moved since launch.)
 # Use ${CLAUDE_SESSION_ID} with braces — skill string substitution only fires on the
 # ${...} form. The bare $CLAUDE_SESSION_ID is NOT an env var in the Bash tool, so it
 # passes through unsubstituted and resolves to empty (transcript then "not found").
-TX=$(bash "$L" transcript-path "$PWD" "${CLAUDE_SESSION_ID}")
+TX=$(bun "$L" transcript-path "$PWD" "${CLAUDE_SESSION_ID}")
 echo "$TX"   # empty -> transcript not found; tell the user and stop
 ```
 
@@ -345,8 +345,8 @@ Build the `## Highlights` section as a curated subset, **anchored to the determi
 
 ```bash
 PROJ="$PWD"
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" get-state "$PROJ"
-MD="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" state-md-path "$PROJ")"
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts" get-state "$PROJ"
+MD="$(bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts" state-md-path "$PROJ")"
 ```
 
 State is the SessionStart hook's stable, human-readable anchor — keep it **slim** and
@@ -417,10 +417,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.sh" "$MD"
 Then publish the **exact same text** (the file you just wrote) to Notion — same headings,
 same links, same lines; do not re-summarize or re-format it:
 - If get-state is empty: `notion-create-pages` under the **`States` folder**
-  (`bash …/config.sh get states_folder_id`; fall back to `container_page_id` only if a
+  (`bun …/config.ts get states_folder_id`; fall back to `container_page_id` only if a
   pre-folder workspace returns empty) — title `State — <project>`, icon
   `https://www.notion.so/icons/target_gray.svg`, `content` = the mirror's content; then
-  `bash …/config.sh set-state "$PROJ" "<page_id>"`. Keeping every project's State under the one
+  `bun …/config.ts set-state "$PROJ" "<page_id>"`. Keeping every project's State under the one
   `States` folder is what stops the container root from filling with one flat State page per
   project.
 - Else: `notion-update-page` `replace_content` on that page id, `content` = the mirror's
@@ -435,7 +435,7 @@ the keys-only index (complete enumeration).
 ## 9. Mark saved + report
 
 ```bash
-SAVED="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.sh" saved-dir)"
+SAVED="$(bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/config.ts" saved-dir)"
 mkdir -p "$SAVED" && : > "$SAVED/${CLAUDE_SESSION_ID}"
 # index the Session row too, so audit/recall can enumerate sessions completely and the local
 # BM25 recall can surface "we built something like this before" (9th arg = the Summary snippet).
