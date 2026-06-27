@@ -8,7 +8,7 @@ argument-hint: "[Complete|WIP|Interrupted]"
 
 Persist this session to Notion so humans and future Claude sessions can recall what
 was decided, what is unfinished, and why. You produce the intelligence (summary,
-decisions, rules, classification, chat highlights); `scripts/extract.sh` produces the
+decisions, rules, classification, chat highlights); `scripts/extract.ts` produces the
 deterministic parts (files, commands, metadata). All Notion writes go through the
 connected Notion MCP. Write Notion content in the **user's conversation language**.
 
@@ -55,14 +55,14 @@ echo "$TX"   # empty -> transcript not found; tell the user and stop
 ## 3. Deterministic extraction
 
 ```bash
-E="${CLAUDE_PLUGIN_ROOT}/scripts/extract.sh"
+E="${CLAUDE_PLUGIN_ROOT}/scripts/extract.ts"
 # ONE call parses the (large) transcript once and returns every view as a JSON object:
 #   .meta  {title, started, ended, cwd, gitBranch, model, sessionId}
 #   .stats {userTurns, assistantTurns, toolCalls, filesEdited, bashCommands, durationMin, …}
 #   .files / .commands / .prompts / .tools / .chat  — arrays of pre-formatted lines
 #     (.prompts = the human's real messages = the You-side anchor for step 7;
 #      .chat = cleaned full chat, per-turn capped, for the Full-chat child page in step 5b)
-bash "$E" all "$TX"
+bun "$E" all "$TX"
 git config user.name 2>/dev/null || echo "unknown"   # Author
 ```
 

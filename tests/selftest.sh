@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # iroha-for-session selftest — behavioral oracle for deterministic extraction.
-# Runs scripts/extract.sh against a synthetic transcript fixture and asserts the views
+# Runs scripts/extract.ts against a synthetic transcript fixture and asserts the views
 # save-session depends on (files / commands / meta) are correct — including tolerance of
 # truncated / malformed transcript lines. Also covers config and the SessionStart hook.
 # Run: bash tests/selftest.sh; echo $?   (0 = ALL PASS)
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-EXTRACT="$HERE/../scripts/extract.sh"
+EXTRACT="$HERE/../scripts/extract.ts"
 FIX="$HERE/fixtures/sample.jsonl"
 
 pass=0
@@ -44,23 +44,23 @@ eq() {
 }
 
 echo "=== extract meta (the view save-session depends on) ==="
-meta=$(bash "$EXTRACT" meta "$FIX")
+meta=$(bun "$EXTRACT" meta "$FIX")
 eq meta-valid-json "ok" "$(printf '%s' "$meta" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
 has meta-title "Add login endpoint" "$meta"
 has meta-sessionid "sessionId" "$meta"
 
 echo "=== extract files (deduped) ==="
-files=$(bash "$EXTRACT" files "$FIX")
+files=$(bun "$EXTRACT" files "$FIX")
 has files-path "src/login.ts" "$files"
 eq files-dedup "1" "$(printf '%s\n' "$files" | grep -c 'src/login.ts')"
 
 echo "=== extract commands (first line only) ==="
-cmds=$(bash "$EXTRACT" commands "$FIX")
+cmds=$(bun "$EXTRACT" commands "$FIX")
 has cmd-bash "npm test" "$cmds"
 hasnt cmd-firstline-only "echo done" "$cmds"
 
 echo "=== extract prompts (human's real messages — the You-anchor) ==="
-prompts=$(bash "$EXTRACT" prompts "$FIX")
+prompts=$(bun "$EXTRACT" prompts "$FIX")
 has prompts-human "Please add a login endpoint" "$prompts"
 hasnt prompts-no-toolresult "FILE WRITTEN" "$prompts"
 hasnt prompts-no-tasknotif "NOISE-TASKNOTIF" "$prompts"
@@ -70,18 +70,18 @@ hasnt prompts-no-teammate "NOISE-TEAMMATE" "$prompts"  # a peer-agent (teammate-
 hasnt prompts-no-compact "NOISE-COMPACT" "$prompts"    # an injected compaction summary is not a You turn
 
 echo "=== extract stats (metrics dashboard numbers) ==="
-stats=$(bash "$EXTRACT" stats "$FIX")
+stats=$(bun "$EXTRACT" stats "$FIX")
 eq stats-valid-json "ok" "$(printf '%s' "$stats" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
 eq stats-userturns "1" "$(printf '%s' "$stats" | jq -r '.userTurns')"
 eq stats-files "1" "$(printf '%s' "$stats" | jq -r '.filesEdited')"
 eq stats-duration "5" "$(printf '%s' "$stats" | jq -r '.durationMin')"
 
 echo "=== extract tools (per-tool tally) ==="
-tools=$(bash "$EXTRACT" tools "$FIX")
+tools=$(bun "$EXTRACT" tools "$FIX")
 has tools-bash "Bash" "$tools"
 
 echo "=== extract chat (cleaned full chat, no noise) ==="
-chat=$(bash "$EXTRACT" chat "$FIX")
+chat=$(bun "$EXTRACT" chat "$FIX")
 has chat-you "Please add a login endpoint" "$chat"
 has chat-claude "the endpoint is added" "$chat"
 hasnt chat-no-thinking "SECRET THOUGHTS" "$chat"
@@ -93,25 +93,25 @@ hasnt chat-no-teammate "NOISE-TEAMMATE" "$chat"  # peer-agent (teammate-message)
 hasnt chat-no-compact "NOISE-COMPACT" "$chat"    # injected compaction summary excluded from the chat
 
 echo "=== extract all (one-pass aggregate — must equal the individual views, no drift) ==="
-all=$(bash "$EXTRACT" all "$FIX")
+all=$(bun "$EXTRACT" all "$FIX")
 eq all-valid-json "ok" "$(printf '%s' "$all" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
-eq all-meta-eq     "$(bash "$EXTRACT" meta "$FIX" | jq -S .)"  "$(printf '%s' "$all" | jq -S .meta)"
-eq all-stats-eq    "$(bash "$EXTRACT" stats "$FIX" | jq -S .)" "$(printf '%s' "$all" | jq -S .stats)"
-eq all-files-eq    "$(bash "$EXTRACT" files "$FIX")"    "$(printf '%s' "$all" | jq -r '.files[]')"
-eq all-commands-eq "$(bash "$EXTRACT" commands "$FIX")" "$(printf '%s' "$all" | jq -r '.commands[]')"
-eq all-prompts-eq  "$(bash "$EXTRACT" prompts "$FIX")"  "$(printf '%s' "$all" | jq -r '.prompts[]')"
-eq all-tools-eq    "$(bash "$EXTRACT" tools "$FIX")"    "$(printf '%s' "$all" | jq -r '.tools[]')"
-eq all-chat-eq     "$(bash "$EXTRACT" chat "$FIX")"     "$(printf '%s' "$all" | jq -r '.chat[]')"
+eq all-meta-eq     "$(bun "$EXTRACT" meta "$FIX" | jq -S .)"  "$(printf '%s' "$all" | jq -S .meta)"
+eq all-stats-eq    "$(bun "$EXTRACT" stats "$FIX" | jq -S .)" "$(printf '%s' "$all" | jq -S .stats)"
+eq all-files-eq    "$(bun "$EXTRACT" files "$FIX")"    "$(printf '%s' "$all" | jq -r '.files[]')"
+eq all-commands-eq "$(bun "$EXTRACT" commands "$FIX")" "$(printf '%s' "$all" | jq -r '.commands[]')"
+eq all-prompts-eq  "$(bun "$EXTRACT" prompts "$FIX")"  "$(printf '%s' "$all" | jq -r '.prompts[]')"
+eq all-tools-eq    "$(bun "$EXTRACT" tools "$FIX")"    "$(printf '%s' "$all" | jq -r '.tools[]')"
+eq all-chat-eq     "$(bun "$EXTRACT" chat "$FIX")"     "$(printf '%s' "$all" | jq -r '.chat[]')"
 
 echo "=== extract tolerates truncated / malformed lines ==="
 BROKEN=$(mktemp "${TMPDIR:-/tmp}/iroha-broken.XXXXXX")
 cat "$FIX" >"$BROKEN"
 printf 'GARBAGE-NOT-JSON\n{"type":"assistant","truncated-no-close\n' >>"$BROKEN"
-bfiles=$(bash "$EXTRACT" files "$BROKEN")
+bfiles=$(bun "$EXTRACT" files "$BROKEN")
 bec=$?
 eq broken-files-exit0 "0" "$bec"
 has broken-files-survives "src/login.ts" "$bfiles"
-bmeta=$(bash "$EXTRACT" meta "$BROKEN")
+bmeta=$(bun "$EXTRACT" meta "$BROKEN")
 eq broken-meta-valid-json "ok" "$(printf '%s' "$bmeta" | jq -e . >/dev/null 2>&1 && echo ok || echo bad)"
 has broken-meta-title "Add login endpoint" "$bmeta"
 rm -f "$BROKEN"
