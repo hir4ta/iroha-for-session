@@ -255,8 +255,8 @@ already see in the local index (`bash "$IDX" find-topic` below lists them); if t
 `<topic>` is new, `notion-update-data-source <decisions_ds_id>` `ALTER COLUMN "Topic" SET
 SELECT(<existing topics…>, '<topic>':color)` before creating the row (include existing options —
 SET replaces the list). Prefer reusing an existing topic string over coining a near-synonym, so
-the topic families stay consolidated rather than fragmenting (`リコール精度` and `リコール` should
-not both be coined for the same concept).
+the topic families stay consolidated rather than fragmenting (e.g. do not coin both
+`recall-precision` and `recall` as separate topics for one concept).
 
 **Dedup & supersede (use the local index for completeness).** A decision's `Name` is
 `<topic>: <choice>`, so the **topic prefix is the dedup key.** The free plan cannot

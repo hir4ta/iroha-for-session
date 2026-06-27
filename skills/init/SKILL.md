@@ -135,7 +135,7 @@ API token.
      the scalable "browse by period" answer; a flat table never needs to become a page hierarchy,
      which would forfeit filter/sort/search). Notion groups a date by *relative* buckets by
      default; the user can switch the group granularity to **Month** in the view settings for
-     literal `2026年6月` buckets.
+     literal calendar-month buckets (e.g. `2026-06`).
    - `notion-create-view` type `board`, `GROUP BY "Status" SORT BY "Date" ASC` (secondary).
    On the **Decisions** database:
    - `notion-create-view` type `table` named **`Active`**, `FILTER "Status" = "Active"`

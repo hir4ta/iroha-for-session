@@ -54,8 +54,10 @@ header `<callout>` summary, a stack `<table>`, a ```mermaid``` architecture diag
 the rationale, link to the Decisions DB; never re-explain decisions here. Icon
 `https://www.notion.so/icons/cube_gray.svg`.
 
-**Link to the project's current State** in the header callout: `現在地: [State — <project>]
-(<state_page_url>)` (using the state page id from step 1; omit if none yet). This is the
+**Link to the project's current State** in the header callout — a localized "current state"
+line linking the State page, e.g. `Current state: [State — <project>](<state_page_url>)` (write
+the label in the user's conversation language; use the state page id from step 1; omit if none
+yet). This is the
 Projects↔State mutual link — Projects holds the *durable stack* and links to State's *live
 status*, while State links back here for the stack. They stay **separate** pages on purpose
 (this profile is manual / engineer-judged; State is rewritten every `/iroha:save-session`), so
