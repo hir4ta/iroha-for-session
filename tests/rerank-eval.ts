@@ -7,9 +7,9 @@
 // every hard-negative (off-topic but same-vocabulary) prompt must yield ZERO injected decisions,
 // while real prompts still surface their decision.
 //
-// This requires the opt-in runtime (Node + @huggingface/transformers + the local model). When that
-// is absent it SKIPS with exit 0 — the pure-bash/TS BM25 path (recall-eval / selftest) is the
-// always-on guarantee; this is the extra precision layer, validated wherever the model is present.
+// This requires the opt-in @huggingface/transformers dep + the local model (run in-process under Bun,
+// no node). When that is absent it SKIPS with exit 0 — the dependency-free TS BM25 path (recall-eval)
+// is the always-on guarantee; this is the extra precision layer, validated wherever the model is present.
 //
 // Run: bun tests/rerank-eval.ts   (PASS / SKIP / FAIL)
 
