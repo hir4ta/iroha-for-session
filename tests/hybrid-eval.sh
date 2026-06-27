@@ -10,7 +10,7 @@
 #
 # It SKIPs (exit 0, no failure) when the opt-in models are not installed, exactly like
 # rerank-eval.sh, so a fresh CI checkout without the ~hundreds-of-MB models is green. Run the real
-# thing with the models present:  IROHA_MODEL_DIR=$HOME/.iroha-for-notion/models bash tests/hybrid-eval.sh
+# thing with the models present:  IROHA_MODEL_DIR=$HOME/.iroha/models bash tests/hybrid-eval.sh
 set -u
 
 ROOT="${IROHA_EVAL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -23,7 +23,7 @@ K=3
 BM25_MISSES="リコールの設計方針はどうする
 セッション終了時に自動でNotionへ保存すべきか"
 
-export IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}"
+export IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha/models}"
 export IROHA_RECALL_FORCE_HEAVY=1   # exercise the heavy path without mutating the user's config
 
 command -v node >/dev/null 2>&1 || { echo "hybrid-eval: SKIP (node not installed — opt-in tier)"; exit 0; }

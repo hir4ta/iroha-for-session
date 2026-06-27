@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "description": "iroha-for-notion: inject the project's prior State + a save reminder at session start, proactive local recall (pure-jq BM25 over the keys-only index, no LLM/network) of relevant past decisions on each prompt, and a write-time advisory before `git commit` that surfaces the Active decisions governing the change (so a silent course-reversal is caught before it lands).",
+  "description": "iroha-for-session: inject the project's prior State + a save reminder at session start, proactive local recall (pure-jq BM25 over the keys-only index, no LLM/network) of relevant past decisions on each prompt, and a write-time advisory before `git commit` that surfaces the Active decisions governing the change (so a silent course-reversal is caught before it lands).",
   "hooks": {
     "SessionStart": [
       {

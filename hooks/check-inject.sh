@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# iroha-for-notion — PreToolUse hook: proactive WRITE-TIME decision check (cheap, offline, no LLM).
+# iroha-for-session — PreToolUse hook: proactive WRITE-TIME decision check (cheap, offline, no LLM).
 #
 # North star: catch a silent course-reversal at the moment it would land — just before `git commit`.
 # recall-inject.sh surfaces relevant decisions when you TALK about a change; this surfaces them when

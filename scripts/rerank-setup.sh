@@ -19,7 +19,7 @@ MODEL="${IROHA_RERANK_MODEL:-onnx-community/bge-reranker-v2-m3-ONNX}"
 DTYPE="${IROHA_RERANK_DTYPE:-q8}"
 EMODEL="${IROHA_EMBED_MODEL:-Xenova/multilingual-e5-small}"
 EDTYPE="${IROHA_EMBED_DTYPE:-q8}"
-MODELDIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}"
+MODELDIR="${IROHA_MODEL_DIR:-$HOME/.iroha/models}"
 
 command -v node >/dev/null 2>&1 || { echo "rerank-setup: node is required (>=18)"; exit 1; }
 command -v npm  >/dev/null 2>&1 || { echo "rerank-setup: npm is required"; exit 1; }

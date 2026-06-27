@@ -62,7 +62,7 @@ iroha_recall_local() { # <root> <query> [topn] -> JSON lines, ranked
   if [ -n "$docs" ] && [ "$docs" != "[]" ]; then
     dense=$(jq -nc --arg q "$query" --argjson docs "$docs" --argjson k "${IROHA_DENSE_CANDIDATES:-8}" \
       '{query:$q, docs:$docs, topk:$k}' \
-      | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}" \
+      | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha/models}" \
         node "$pr/scripts/embed.mjs" 2>/dev/null) || dense=""
   fi
   dense_ids=$(printf '%s' "$dense" | jq -r '.[]?.id // empty' 2>/dev/null)
@@ -83,7 +83,7 @@ iroha_recall_local() { # <root> <query> [topn] -> JSON lines, ranked
     --argjson th "${IROHA_RERANK_THRESHOLD:-0.05}" --argjson tn 50 \
     '{query:$q, docs:$docs, threshold:$th, topn:$tn}' 2>/dev/null)
   survivors=$(printf '%s' "$payload" \
-    | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}" \
+    | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha/models}" \
       node "$pr/scripts/rerank.mjs" 2>/dev/null)
   rc=$?
   strong_ids=""

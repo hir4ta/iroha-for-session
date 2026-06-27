@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # config.sh — read/write the plugin's persisted config (Notion DB / page ids).
-# Lives at $HOME/.iroha-for-notion/config.json (override the dir with IROHA_CONFIG_DIR).
+# Lives at $HOME/.iroha/config.json (override the dir with IROHA_CONFIG_DIR).
 # Sourceable library: pure jq over a small JSON file, no network. Holds only
 # non-secret ids (auth is handled by the Notion MCP OAuth connection):
 #
@@ -16,7 +16,7 @@ set -u
 iroha_config_path() {
   # Stable per-user location: same path whether invoked from a skill, a hook, or the
   # CLI, and it survives plugin reinstalls. Override with IROHA_CONFIG_DIR for tests.
-  local base="${IROHA_CONFIG_DIR:-$HOME/.iroha-for-notion}"
+  local base="${IROHA_CONFIG_DIR:-$HOME/.iroha}"
   printf '%s/config.json' "$base"
 }
 

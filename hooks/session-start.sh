@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# iroha-for-notion — SessionStart hook. Injects the project's last saved State (from a
+# iroha-for-session — SessionStart hook. Injects the project's last saved State (from a
 # local mirror; this hook cannot reach Notion) and a gentle reminder when the previous
 # session was never saved. On a compaction restart (source=compact) it ALSO re-injects
 # the current session's conversation so far (your prompts + a capped recent tail) so the

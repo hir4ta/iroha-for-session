@@ -35,11 +35,11 @@ jobs:
 
       # Cache both models across runs, keyed on the immutable model ids (so the weekly + manual runs
       # reuse them; only a cache miss re-downloads). They live where embed.mjs / rerank.mjs look
-      # (IROHA_MODEL_DIR, default $HOME/.iroha-for-notion/models).
+      # (IROHA_MODEL_DIR, default $HOME/.iroha/models).
       - name: Cache heavy-tier models
         uses: actions/cache@v4
         with:
-          path: ~/.iroha-for-notion/models
+          path: ~/.iroha/models
           key: iroha-hybrid-models-bge-reranker-v2-m3-q8-and-e5-small-q8
 
       # Pre-download both models on a cache miss (ALLOW_DOWNLOAD=1). At eval time embed/rerank run
@@ -47,17 +47,17 @@ jobs:
       - name: Pre-fetch models (cache miss only; evals run offline-from-cache)
         run: |
           printf '%s' '{"query":"warmup","docs":[{"id":"w","text":"warmup passage"}],"threshold":0.0,"topn":1}' \
-            | IROHA_RERANK_ALLOW_DOWNLOAD=1 IROHA_MODEL_DIR="$HOME/.iroha-for-notion/models" \
+            | IROHA_RERANK_ALLOW_DOWNLOAD=1 IROHA_MODEL_DIR="$HOME/.iroha/models" \
               node scripts/rerank.mjs
           printf '%s' '{"query":"warmup","docs":[{"id":"w","text":"warmup passage"}],"topk":1}' \
-            | IROHA_EMBED_ALLOW_DOWNLOAD=1 IROHA_MODEL_DIR="$HOME/.iroha-for-notion/models" \
+            | IROHA_EMBED_ALLOW_DOWNLOAD=1 IROHA_MODEL_DIR="$HOME/.iroha/models" \
               node scripts/embed.mjs
 
       # End-to-end hybrid quality: recall recovery of the BM25 candidate-generation miss, 100%
       # cross-domain abstention, and the reported same-vocab soft-leak rate (recall-first, low-harm).
       - name: Hybrid recall eval (BM25 ∪ dense -> rerank)
-        run: IROHA_MODEL_DIR="$HOME/.iroha-for-notion/models" npm run test:hybrid
+        run: IROHA_MODEL_DIR="$HOME/.iroha/models" npm run test:hybrid
 
       # Cross-encoder unit precision: 0 false-injection on hard negatives + the JP/EN synonym recall.
       - name: Rerank precision eval (bge-reranker-v2-m3)
-        run: IROHA_MODEL_DIR="$HOME/.iroha-for-notion/models" npm run test:rerank
+        run: IROHA_MODEL_DIR="$HOME/.iroha/models" npm run test:rerank

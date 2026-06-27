@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# iroha-for-notion selftest — behavioral oracle for deterministic extraction.
+# iroha-for-session selftest — behavioral oracle for deterministic extraction.
 # Runs scripts/extract.sh against a synthetic transcript fixture and asserts the views
 # save-session depends on (files / commands / meta) are correct — including tolerance of
 # truncated / malformed transcript lines. Also covers config and the SessionStart hook.

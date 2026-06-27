@@ -27,7 +27,7 @@ command -v node >/dev/null 2>&1 || { echo "SKIP: node not available (opt-in rera
 
 # Probe: is the runtime+model actually usable? rerank.mjs exits 3 when the dep/model is missing.
 probe=$(printf '{"query":"ping","docs":[{"id":"x","text":"ping pong"}],"threshold":0.0,"topn":1}' \
-  | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}" node "$RERANK" 2>/dev/null)
+  | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha/models}" node "$RERANK" 2>/dev/null)
 if [ "$?" = 3 ] || [ -z "$probe" ]; then
   echo "SKIP: rerank runtime/model not installed (run the rerank setup to enable this precision eval)"
   exit 0
@@ -38,7 +38,7 @@ docs=$(jq -s -c '[.[] | {id, text: ([.title,.topic,.text] | map(select(. != null
 
 rerank() { # rerank <query> -> survivor ids (one per line)
   printf '{"query":%s,"docs":%s,"threshold":%s,"topn":3}' "$(jq -n --arg q "$1" '$q')" "$docs" "$THRESHOLD" \
-    | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha-for-notion/models}" node "$RERANK" 2>/dev/null \
+    | IROHA_MODEL_DIR="${IROHA_MODEL_DIR:-$HOME/.iroha/models}" node "$RERANK" 2>/dev/null \
     | jq -r '.[].id'
 }
 # topic substring of an id (to check the right decision surfaced)

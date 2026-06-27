@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# iroha-for-notion — UserPromptSubmit hook: proactive LOCAL recall (cheap, offline, no LLM).
+# iroha-for-session — UserPromptSubmit hook: proactive LOCAL recall (cheap, offline, no LLM).
 #
 # North star: Claude consults relevant past decisions BEFORE building, every time — without the
 # user running /iroha:recall. An earlier version spawned a bounded headless `claude -p` on every
