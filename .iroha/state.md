@@ -6,7 +6,6 @@
 ## Unfinished / Next
 - [ ] **N=1 脱出**: 非 iroha / 非日本語の実プロジェクトで iroha 全体を実証(総合の天井を上げる唯一の手)。mumei 実使用が端緒。
 - [ ] 空ページ「iroha」(`38c822c6938a81e78899e6aef2081ec1`)を UI でゴミ箱へ(MCP はページ削除不可)。
-- [ ] このセッションの Full chat 子ページ(verbatim 監査証跡)を作成(337行と巨大ゆえ別途・`extract.sh chat` から再生成可)。
 - [ ] init step9 の real-newline/fetch 検証を実 init 1回でスモーク確認(本セッションで手動実行は確認済)。
 - [ ] 小粒: `digest` の index 列挙化・古い `<teammate-message>` 計上は本セッションで根治済。
 
