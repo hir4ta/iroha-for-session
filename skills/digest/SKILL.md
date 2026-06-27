@@ -38,17 +38,38 @@ echo "$START -> $END"
 
 (`date -v` is BSD/macOS, `date -d` is GNU — the fallback covers both.)
 
-## 3. Gather the period's memory
+## 3. Gather the period's memory — complete & current via the local index, content via Notion
 
-- **Sessions** — `notion-search` over `session_ds_id` with
-  `filters.created_date_range = {start_date: START, end_date: END}`, `page_size` ~25.
-  For each hit, `notion-fetch` to read its `Summary`, `Type`, `Status`, the `## Metrics`
-  line, and the decisions it made. Keep this bounded (top ~15 by date); if you cap, say
-  so in the digest (never silently drop).
-- **Decisions** — `notion-search` over `decisions_ds_id` for the same window; keep only
-  `Status = Active` (mention superseded only if it was superseded *within* the period).
+The committed local index (`.iroha/index.ndjson`) is the **complete** enumeration of saved
+sessions and decisions — the completeness layer `notion-search` lacks on the free plan (search
+returns only a semantic top-N and lags writes by minutes, and `query-data-sources` is paid).
+Enumerate the window from the index so the digest's counts and lists are exhaustive and include
+work saved moments ago, then `notion-fetch` each id for its body.
+
+```bash
+IDX="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/index.sh"
+# Complete window enumeration, newest first (ISO YYYY-MM-DD dates compare lexicographically).
+bash "$IDX" list "$PWD" session \
+  | jq -s -c --arg s "$START" --arg e "$END" \
+      'map(select(.date>=$s and .date<=$e)) | sort_by(.date) | reverse | .[]'
+bash "$IDX" list "$PWD" decision \
+  | jq -s -c --arg s "$START" --arg e "$END" \
+      'map(select(.date>=$s and .date<=$e and .status=="Active")) | sort_by(.date) | reverse | .[]'
+```
+
+- **Sessions** — the index lines give the complete `id` / `title` / `date` / `status`. For each,
+  `notion-fetch` to read its `Summary`, `Type`, `Status`, the `## Metrics` line, and the
+  decisions it made. If the window is large you may cap the *fetches* (newest ~15) — but the
+  **session count** comes from the full index enumeration above, so the totals stay honest. If
+  you cap, say so in the digest (never silently drop).
+- **Decisions** — the enumeration above already keeps only `Status = Active` (mention a
+  superseded one only if it was superseded *within* the period). `notion-fetch` each for Why/Date.
 - **Still-open** — `notion-fetch` the project `State` page (`bash "$L" get-state "$PWD"`)
   and read its **Unfinished / Next** list.
+- **Empty/stale index fallback** — a workspace created before the index existed lists nothing.
+  Then fall back to `notion-search` over `session_ds_id` / `decisions_ds_id` with
+  `filters.created_date_range = {start_date: START, end_date: END}` (`page_size` ~25) and **note
+  in the digest that the rollup may be incomplete** (search returns only a top-N).
 
 ## 4. Compose the digest content (monochrome Notion-flavored Markdown, no emoji)
 
@@ -57,8 +78,11 @@ Sections, in this order:
    (`N sessions, M decisions; themes: …`).
 2. `## Metrics` — a `<callout color="gray_bg">` aggregate dashboard: total sessions,
    total decisions, files touched (sum of each session's `Files`), and a **by-Type**
-   tally (`Implementation ×3 · Fix ×2 · Research ×1`). Sum from each session's `## Metrics` line —
-   do not invent numbers.
+   tally (`Implementation ×3 · Fix ×2 · Research ×1`). The **total sessions / total decisions**
+   are the **count of the index enumeration** in step 3 (complete). Files touched and the
+   by-Type tally are summed from the `## Metrics` line of each **fetched** session — do not
+   invent numbers; if you capped the fetches, label them "across the N fetched of M sessions"
+   so a partial aggregate is never shown as complete.
 3. `## Decisions made` — a `<table header-row="true">` (`<tr color="blue_bg">` header):
    Decision / Why / Date. One row per Active decision in the window. Wrap code in backticks.
 4. `## Sessions` — newest first, one bullet each:
