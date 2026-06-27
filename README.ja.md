@@ -1,5 +1,7 @@
 # iroha for Notion
 
+> **セッションは散る。iroha は覚えている。**
+
 [English](README.md) | **日本語**
 
 **Claude Code との会話を、Notion に「育つチームの記憶」として残すプラグインです。**

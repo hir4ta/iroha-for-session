@@ -1,5 +1,7 @@
 # iroha for Notion
 
+> **Sessions scatter. iroha remembers.**
+
 **English** | [日本語](README.ja.md)
 
 > Persist Claude Code sessions to Notion as a living, queryable **team memory** —
