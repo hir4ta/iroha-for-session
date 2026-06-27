@@ -1,29 +1,34 @@
 # Contributing
 
-Thanks for your interest in iroha for Notion. It's a small, pure-bash Claude Code
-plugin — easy to run locally.
+Thanks for your interest in iroha for Notion. It's a small Claude Code plugin
+(Bun + TypeScript) — easy to run locally.
 
 ## Dev setup
 
 ```bash
 git clone https://github.com/hir4ta/iroha-for-session
 cd iroha-for-session
-npm install                                   # biome (JSON lint/format)
+bun install                                   # dev tools: biome, typescript, fast-check
 pre-commit install && pre-commit install --hook-type pre-push
 ```
 
-You'll also want `jq` and `shellcheck` on your PATH (the bash scripts and tests use them).
+Everything runs on [Bun](https://bun.sh) — `bun X.ts` executes TypeScript directly, no
+build step. No `jq` / `shellcheck` needed (the former bash scripts are gone).
 
 ## Tests & checks
 
-`tests/selftest.sh` is the **behavioral oracle** — pure bash, no bats. If you change
-extraction or hook behavior, update it.
+`bun test` (`tests/*.test.ts`) is the **behavioral oracle**. If you change extraction or
+hook behavior, update it.
 
 ```bash
-npm run test:bash     # bash tests/selftest.sh  (0 = all pass)
-npm run lint          # biome check .
-shellcheck scripts/**/*.sh hooks/*.sh tests/*.sh
+bun test              # behavioral oracle (0 = all pass)
+bunx tsc --noEmit     # types
+bun run lint          # biome check .
 ```
+
+Quality evals are separate (and slower): `bun tests/recall-eval.ts` (FREE BM25 recall) /
+`bun tests/hybrid-eval.ts` (opt-in HEAVY tier — SKIPs cleanly when the local models are
+absent). See [`.claude/rules/testing.md`](.claude/rules/testing.md) for the full set.
 
 CI runs the same checks on every push and PR.
 
@@ -32,8 +37,8 @@ CI runs the same checks on every push and PR.
 - **Notion is the only integration** — go through the Notion MCP, never an API token
   (see [`.claude/rules/architecture.md`](.claude/rules/architecture.md) for the
   invariants).
-- **Deterministic extraction is bash; intelligence is Claude** (inside the skills). Do
-  not call any model API from code.
+- **Deterministic extraction is TypeScript; intelligence is Claude** (inside the skills).
+  Do not call any model API from code.
 - **Distributed files** (scripts, `SKILL.md`, manifests) are in **English**.
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/), one-line
   subject, imperative mood (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:`,
