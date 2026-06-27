@@ -28,9 +28,19 @@ API token.
    If it prints an id, iroha is already initialized — say so and stop unless the
    user explicitly asks to re-initialize.
 
-3. **Resolve the parent page.** Use `$ARGUMENTS` as a Notion page URL/ID if given;
-   else ask the user for the page URL where iroha should live. `notion-fetch` it to
-   confirm access and get the bare page id (32-hex).
+3. **Resolve the root page (where iroha's memory will live).** If `$ARGUMENTS` is a Notion
+   page URL/ID, use it as the root and skip the prompt. Otherwise **do not assume the user has
+   pre-made a page** — ask with **`AskUserQuestion`** ("Where should iroha's memory live?"),
+   two options:
+   - **Create it for me (recommended)** — ask for a name (default `iroha`), then
+     `notion-create-pages` with **no `parent`** (a top-level, workspace-level private page),
+     `properties: {"title": "<name>"}`, icon `https://www.notion.so/icons/notebook_gray.svg`.
+     This is the zero-setup path: the first-time user never has to know to pre-create a page.
+   - **Use an existing page** — ask the user to paste the page URL (e.g. a blank page they
+     already made), then `notion-fetch` it.
+   Either way, `notion-fetch` the resolved page to confirm access, get the **bare page id
+   (32-hex)**, and tell the user the title + that everything below will be created under it (so
+   they know exactly where iroha lives). Localize the question/labels to the user's language.
 
 4. **Reuse if present (team-join).** If the fetched page already contains `Sessions`,
    `Decisions`, and `Projects` databases, capture their data source ids (step 7), also
@@ -168,11 +178,16 @@ API token.
    Write the guide text in the user's conversation language (the English here is the canonical
    template; the prose a teammate reads should be localized).
 
-10. **Confirm** with links to both databases and tell the user they can now run
-    `/iroha:save-session`. Mention that **enforced just-in-time recall is now on**: each
-    substantive prompt triggers a bounded background recall of relevant past decisions
-    (disable any time with `IROHA_RECALL_DISABLE=1`; verify readiness with
-    `bash "${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.sh" --selfcheck`).
+10. **Confirm — make the "now what?" crystal clear.** Give the user, in their language:
+    - a one-line **link to the root page** (their new iroha home) and the key views to navigate
+      by — Sessions `Recent` / `By Month`, Decisions `Active` / `By Topic`, Projects `By Language`.
+    - **the whole loop in one breath**: "Setup is one-time. From now the only command you run is
+      `/iroha:save-session` at the end of a working session — recall and your project State are
+      injected **automatically** (no command needed). Look things up any time with
+      `/iroha:recall <topic>`; refresh the stack with `/iroha:project` when it changes."
+    - that **proactive recall is now armed**: each substantive prompt gets a bounded local recall
+      of relevant past decisions (disable with `IROHA_RECALL_DISABLE=1`; check readiness with
+      `bash "${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.sh" --selfcheck`).
 
     **Optional higher-precision recall (opt-in, heavy).** Proactive recall runs on the pure-bash
     BM25 stage by default — zero deps, instant. For higher precision (a local cross-encoder reranker
