@@ -23,27 +23,27 @@ changed, and why.
 
 ## How it works
 
-- The **runtime is pure bash** (`scripts/extract.sh`, `set -u` + `jq`): it does the
-  deterministic extraction (changed files, commands, metadata) from the session
+- The **runtime is Bun + TypeScript** (`scripts/**/*.ts`, run directly with no build step):
+  it does the deterministic extraction (changed files, commands, metadata) from the session
   transcript. The **intelligence** (summary, decisions, classification, chat highlights)
   is produced by Claude inside the skills.
 - All Notion reads/writes go through the **Notion MCP** — there is **no API token**.
   Auth is the MCP's OAuth, so setup is a single connection. Works on the **free** Notion plan.
 - **Recall is two-stage.** On every prompt, a `UserPromptSubmit` hook runs a *cheap, local*
-  BM25 search (pure `jq`, CJK-aware, **no LLM and no network**) over a tiny on-disk index and
+  BM25 search (`search.ts`, CJK-aware, **no LLM and no network**) over a tiny on-disk index and
   proactively surfaces the most relevant past decisions — so Claude consults them *before*
   rebuilding, at zero per-prompt latency or token cost. When that pointer isn't enough,
   `/iroha:recall` escalates to Notion **semantic** search (`notion-search`, free plan) for the
   full rationale and rejected alternatives. The free tier carries most of the weight; the semantic
   stage catches the paraphrases it misses.
-  *Optional:* `npm run rerank:setup` arms a local **hybrid** tier — a dense bi-encoder
+  *Optional:* `bun run rerank:setup` arms a local **hybrid** tier — a dense bi-encoder
   (`multilingual-e5-small`) generates the semantic near-matches BM25 can't (zero lexical overlap),
   and a **cross-encoder reranker** (`bge-reranker-v2-m3`) *promotes* the strong matches above the
   BM25 list. Measured on this repo's index: it recovers a candidate-generation MISS the lexical
   stage can't (Recall@3 86%→93%) while keeping cross-domain abstention at 100%. The reranker only
   promotes, never vetoes a BM25 hit — vetoing cost real recall (a terse true match scores like an
   off-topic one). Opt-in and heavy (two local models, ~700MB total) — a fresh install stays
-  pure-bash and pays nothing.
+  on the dependency-free BM25 tier and pays nothing.
 - A SessionStart hook injects the project's **State** (from a small repo mirror) so
   Claude proactively tells you where you left off and what's unfinished. After `/compact`
   or auto-compact it also **re-injects the current session's own thread** (your prompts +
@@ -63,7 +63,7 @@ changed, and why.
 ```mermaid
 graph TD
   CC["Claude Code session"] -->|/iroha:save-session| SK["save-session skill"]
-  SK -->|deterministic| EX["extract.sh (bash)"]
+  SK -->|deterministic| EX["extract.ts (Bun)"]
   SK -->|intelligence| CL["Claude"]
   SK -->|Notion MCP / OAuth| N[("Notion")]
   N --> SES["Sessions — what happened"]

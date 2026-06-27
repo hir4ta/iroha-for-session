@@ -29,10 +29,10 @@ iroha は、その記憶を Notion に逃がします。
 
 役割はシンプルに分かれています。
 
-- **決まりきった抽出は bash に。** `scripts/extract.sh`（pure bash + jq）が、トランスクリプトから変更ファイル・コマンド・メタ情報を取り出します。
+- **決まりきった抽出は TypeScript に。** `scripts/extract.ts`（Bun・build 不要）が、トランスクリプトから変更ファイル・コマンド・メタ情報を取り出します。
 - **頭を使うところは Claude に。** 要約・意思決定の抽出・分類・チャットのハイライトは、スキルの中で Claude 本体が書きます。
 - **Notion とのやりとりは MCP だけ。** API トークンは持ちません。認証は Notion MCP の OAuth ひとつ。無料プランでそのまま動きます。
-- **リコールは2段構え。** 毎プロンプト、`UserPromptSubmit` フックが*安価なローカル* BM25 検索（pure `jq`・日本語対応・**LLM もネットワークも使わない**）を小さなローカル index に走らせ、関連する過去の決定をその場で先出しします。だから Claude は作り直す*前*に過去の決定を参照でき、毎プロンプトの遅延もトークンコストもゼロ。それで足りなければ `/iroha:recall` が Notion の**意味検索**（`notion-search`・無料プラン）に切り替え、理由や却下案まで引きます。
+- **リコールは2段構え。** 毎プロンプト、`UserPromptSubmit` フックが*安価なローカル* BM25 検索（`search.ts`・日本語対応・**LLM もネットワークも使わない**）を小さなローカル index に走らせ、関連する過去の決定をその場で先出しします。だから Claude は作り直す*前*に過去の決定を参照でき、毎プロンプトの遅延もトークンコストもゼロ。それで足りなければ `/iroha:recall` が Notion の**意味検索**（`notion-search`・無料プラン）に切り替え、理由や却下案まで引きます。
 
 セッションを開いた瞬間、フックがプロジェクトの「現在地」を注入します。
 
@@ -47,7 +47,7 @@ iroha は、その記憶を Notion に逃がします。
 ```mermaid
 graph TD
   CC["Claude Code session"] -->|/iroha:save-session| SK["save-session skill"]
-  SK -->|deterministic| EX["extract.sh (bash)"]
+  SK -->|deterministic| EX["extract.ts (Bun)"]
   SK -->|intelligence| CL["Claude"]
   SK -->|Notion MCP / OAuth| N[("Notion")]
   N --> SES["Sessions — what happened"]
