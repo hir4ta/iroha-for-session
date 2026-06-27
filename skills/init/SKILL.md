@@ -129,15 +129,23 @@ API token.
    - `notion-create-view` type `table` named **`Recent`**, `SORT BY "Date" DESC` — make
      this the primary entry ("what did we do recently?" is the most common need, and a
      date-descending table beats Calendar/Board for it).
-   - `notion-create-view` type `calendar`, `CALENDAR BY "Date"` (visual, secondary).
+   - `notion-create-view` type `calendar`, `CALENDAR BY "Date"` (visual month navigation).
+   - `notion-create-view` type `table` named **`By Month`**, `GROUP BY "Date" SORT BY "Date"
+     DESC` — collapsible date groups so the list stays navigable as sessions accumulate (this is
+     the scalable "browse by period" answer; a flat table never needs to become a page hierarchy,
+     which would forfeit filter/sort/search). Notion groups a date by *relative* buckets by
+     default; the user can switch the group granularity to **Month** in the view settings for
+     literal `2026年6月` buckets.
    - `notion-create-view` type `board`, `GROUP BY "Status" SORT BY "Date" ASC` (secondary).
    On the **Decisions** database:
-   - `notion-create-view` type `table` named **`Active`**, `FILTER "Status" = 'Active'`
+   - `notion-create-view` type `table` named **`Active`**, `FILTER "Status" = "Active"`
      so superseded / reverted decisions do not clutter "what did we decide?". Make this the
      **primary** Decisions view (the entry-guide callout points here).
    - `notion-create-view` type `board` named **`By Topic`**, `GROUP BY "Topic" FILTER "Status"
-     = 'Active'` so a teammate can see the decision families at a glance and spot topic
+     = "Active"` so a teammate can see the decision families at a glance and spot topic
      fragmentation (the dispersion that title-prefix parsing hid).
+   (Filter values use **double quotes** in the view DSL — `= "Active"`, not `= 'Active'`; a
+   single-quoted value is rejected with a DSL validation error.)
    On the **Projects** database:
    - `notion-create-view` type `board` named **`By Language`**, `GROUP BY "Languages"
      SORT BY "Updated" DESC` so a teammate can browse "all our Go / Python projects".
