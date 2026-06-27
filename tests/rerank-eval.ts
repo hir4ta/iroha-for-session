@@ -65,16 +65,19 @@ async function rerank(query: string): Promise<string[]> {
   }
 }
 
-// TRUE prompts -> a substring the surfaced decision's topic/title must contain. RE-LABELED 2026-06-27
-// against the re-based index (the prior labels — 会話ログ / メモリ列挙 / 抽出 / State / 自動保存 —
-// were stale after the workspace reset, which is why the bash eval failed 0/5). Each query is a
-// paraphrase the cross-encoder ranks #1 above the 0.05 promote threshold (verified empirically).
+// TRUE prompts -> a substring the surfaced decision's topic/title must contain. ONE near-paraphrase
+// per decision that ACTUALLY exists in the re-based index. The workspace was cleared + re-init'd,
+// leaving 3 decisions (ランタイム / 検索lib / 構造検証); the prior labels pointed at decisions that no
+// longer exist, which is why this eval read 0/5 (every TRUE query missed a phantom topic). Each query
+// is a paraphrase the cross-encoder ranks #1 above the 0.05 promote threshold (measured 0.94/0.99/0.98
+// against the current corpus). Re-label / extend this list as the decision corpus grows.
 const TRUEQ: [string, string][] = [
-  ["決定のトピックは一級プロパティにすべきか", "決定スキーマ"],
-  ["StateとProjectsは分離すべきか畳むべきか", "State配置"],
-  ["セッション保存のextract呼び出しをまとめて速くしたい", "保存効率"],
-  ["リコールにcoverage gateを入れてノイズを消すべきか", "リコール精度"],
-  ["init時に事前ページを作るべきか", "初回UX"],
+  [
+    "ランタイムは Bun と TypeScript にすべきか pure bash から移行",
+    "ランタイム",
+  ],
+  ["検索ライブラリは自前実装を維持すべきか外部 lib に置換すべきか", "検索lib"],
+  ["Session 本文の構造を保存前に session-lint で検証すべきか", "構造検証"],
 ];
 // HARD-NEGATIVE prompts (off-topic but share the project's vocabulary) -> MUST inject nothing.
 const NEGQ = [
