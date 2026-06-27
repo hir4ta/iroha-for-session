@@ -67,12 +67,11 @@ function warm(
     process.stderr.write(
       `rerank-setup: ${label} download/load failed (exit ${res.status}):\n`,
     );
-    process.stderr.write(
-      `${(res.stdout ?? "") + (res.stderr ?? "")}`
-        .split("\n")
-        .slice(-5)
-        .join("\n") + "\n",
-    );
+    const tail = `${res.stdout ?? ""}${res.stderr ?? ""}`
+      .split("\n")
+      .slice(-5)
+      .join("\n");
+    process.stderr.write(`${tail}\n`);
     process.exit(1);
   }
 }

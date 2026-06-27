@@ -470,7 +470,8 @@ test("state-lint (escapes, missing sections, summary, real mirror)", () => {
       "- [ ] thing",
       "## Decisions",
       "- [Decisions DB](u)",
-    ].join("\n") + "\n",
+      "",
+    ].join("\n"),
   );
   expect(bun([STATELINT, good]).code).toBe(0);
   const escapeMd = join(dir, "escapeMd.md");
