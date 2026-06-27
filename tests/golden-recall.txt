@@ -1,21 +1,17 @@
 # Golden set for local recall quality — the SINGLE source of truth shared by:
-#   tests/recall-eval.sh   (FREE tier: pure-jq BM25)
-#   tests/hybrid-eval.sh   (HEAVY tier: BM25 ∪ dense -> cross-encoder rerank)
+#   tests/recall-eval.ts   (FREE tier: hand-rolled TS BM25)
+#   tests/hybrid-eval.ts   (HEAVY tier: BM25 ∪ dense -> cross-encoder rerank)
 # One case per line: "<query>|<expected-page-id>". expected id "NONE" = the query MUST abstain.
 # Queries are paraphrases a developer would actually type (NOT a decision's own words), so this
 # measures real recall, not echo. IDs are this repo's real Decision/Session pages.
 #
-# RE-BASED 2026-06-27: the workspace was wiped and re-init'd ("全削除して一から溜める"), so the
-# prior ids no longer exist. These ids are the fresh index's rows. Re-label again whenever the
-# index changes materially (a reset, or after the index grows enough that better paraphrases exist).
-# Lines starting with '#' and blank lines are ignored by the eval loops.
-containerのflat蓄積をフォルダで止めて散らからないようにする|38c822c6-938a-815f-8242-ff6697b6dcf3
-決定のtopicを一級プロパティにして分散を防ぐ|38c822c6-938a-81b0-9572-dc4a45225b14
-StateとProjectsを畳むか分離するか|38c822c6-938a-81cd-98a0-d9a719a981db
-セッション保存のextract呼び出しを集約して速くする|38c822c6-938a-81b4-99dc-fcadcefad069
-coverage gateでrecallのノイズを消すべきか|38c822c6-938a-81f2-b9b9-e22a04d07bbb
-init時に事前ページを作らず作成か既存を選ばせる|38c822c6-938a-8175-a491-f246c584c084
-irohaを4視点レビューで徹底改善し再構築した回|38c822c6-938a-81ea-9ec6-eff92aeb46dc
+# RE-BASED 2026-06-27 (2nd time): the workspace was wiped and re-init'd again, so the prior ids no
+# longer exist. These ids are the fresh index's three Decision rows (ランタイム / 検索lib / 構造検証).
+# Re-label again whenever the index changes materially (a reset, or after it grows enough that
+# better paraphrases exist). Lines starting with '#' and blank lines are ignored by the eval loops.
+bashをやめてBunに移行した判断|38c822c6-938a-81fc-837a-c131eb9dda2d
+検索を外部ライブラリに頼らず自前のBM25で維持する|38c822c6-938a-815a-bfbc-f4c5c57c3151
+セクションの構造崩れをpublish前にゲートで検出する|38c822c6-938a-8155-b998-f6c74144392f
 configure nginx reverse proxy with tls termination|NONE
 optimize the react component re-rendering performance|NONE
 terraform provider configuration for gcp networking|NONE
