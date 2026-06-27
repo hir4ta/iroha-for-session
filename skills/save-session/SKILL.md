@@ -224,17 +224,29 @@ The cleaned full chat (the `.chat` array from step 3) is **paged out** of the Se
 keep it scannable, but it must be **real** — never a placeholder. It is the *cleaned* chat,
 not a raw dump: **every turn is present** (none dropped), but each turn is **capped per-turn**
 (`extract.ts` truncates a long turn to ~600 chars with a `… (truncated)` marker — this is by
-design, so do not claim it is "verbatim/unbounded"). After the Session page exists (step 5),
-create a child page under it: `notion-create-pages` with
-`parent: {"type":"page_id","page_id":"<session_page_id>"}`, title **`Full chat — N turns`**
-(N = the number of `.chat` lines, its array length — putting the count in the title makes the
-natively-listed child page self-explanatory, so no Details toggle is needed), icon
-`https://www.notion.so/icons/chat_gray.svg`, and `content` = the `.chat` lines, **each line as
-its own paragraph, exactly as emitted**. If `.chat` is large, split it across **multiple
-`notion-create-pages` / append calls** (chunk on line boundaries, never mid-line) — the chat is
-large by nature; do **not** drop turns to fit one call. Do **not** also add a "Full chat" toggle
-under `## Details` (step 5, item 9): Notion already shows this child page under the session, so a
-toggle would duplicate it.
+design, so do not claim it is "verbatim/unbounded"). After the Session page exists (step 5), split
+the chat **DETERMINISTICALLY** rather than by hand — hand-splitting a big chat drifts
+(re-summarizing, dropping turns, cutting mid-turn; a past big save ended up "condensed, partial").
+Run `chat-chunks.ts`, which reuses the SAME cleaned `.chat` turns:
+
+```bash
+OUT="$(mktemp -d)"
+bun "${CLAUDE_PLUGIN_ROOT}/scripts/chat-chunks.ts" "$TX" "$OUT"
+# -> {"totalTurns":N,"chunkCount":K,"files":["$OUT/chat-chunk-00.md", …]}  (<=50 turns/file)
+```
+
+It writes K chunk files of <= 50 turns each (override `IROHA_CHAT_CHUNK`), split ONLY on turn
+boundaries (every turn present, none dropped, never mid-turn). Then post them in array order:
+- Create the child page from `files[0]`: `notion-create-pages` with
+  `parent: {"type":"page_id","page_id":"<session_page_id>"}`, title **`Full chat — <totalTurns> turns`**
+  (the count in the title makes the natively-listed child page self-explanatory, so no Details
+  toggle is needed), icon `https://www.notion.so/icons/chat_gray.svg`, `content` = the **verbatim**
+  bytes of `files[0]` (read the file; do NOT re-format, summarize, or re-emit the chat from memory).
+- For each remaining file (`files[1..]`), append it with `notion-update-page` `insert_content`
+  (`position: {"type":"end"}`), `content` = that file's verbatim bytes — in array order.
+When `chunkCount` is 0 (empty chat) create the child page with a short `(no content)` note instead.
+Do **not** also add a "Full chat" toggle under `## Details` (step 5, item 9): Notion already shows
+this child page under the session, so a toggle would duplicate it.
 
 **Anti-fabrication (hard rule).** Never write a sentence that *describes* the chat in place
 of the chat (e.g. "the formatted full chat continues below…"), never claim a turn count you

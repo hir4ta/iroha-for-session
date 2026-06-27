@@ -22,6 +22,7 @@ const INTEG = join(ROOT, "scripts/_lib/integrity.ts");
 const STATELINT = join(ROOT, "scripts/_lib/state-lint.ts");
 const SESSIONLINT = join(ROOT, "scripts/_lib/session-lint.ts");
 const LINKLINT = join(ROOT, "scripts/_lib/link-lint.ts");
+const CHATCHUNKS = join(ROOT, "scripts/chat-chunks.ts");
 const FIX = join(import.meta.dir, "fixtures", "sample.jsonl");
 
 type Run = { out: string; err: string; code: number };
@@ -117,6 +118,21 @@ test("extract tolerates truncated / malformed lines", () => {
   expect(f.out).toContain("src/login.ts");
   const m = JSON.parse(bun([EXTRACT, "meta", broken]).out);
   expect(m.title).toBe("Add login endpoint");
+});
+test("chat-chunks — turn-boundary split, every turn kept, manifest correct", () => {
+  // perChunk=1 -> one chunk per turn (the split is on turn boundaries, never mid-turn).
+  const r1 = JSON.parse(bun([CHATCHUNKS, FIX, mktmp(), "1"]).out);
+  expect(r1.totalTurns).toBeGreaterThan(0);
+  expect(r1.chunkCount).toBe(r1.totalTurns);
+  expect(r1.files.length).toBe(r1.chunkCount);
+  expect(readFileSync(r1.files[0], "utf8")).toMatch(/^\*\*(You|Claude)\*\* /);
+  // big perChunk -> a single chunk holding ALL turns as blank-line-separated paragraphs.
+  const r2 = JSON.parse(bun([CHATCHUNKS, FIX, mktmp(), "100"]).out);
+  expect(r2.chunkCount).toBe(1);
+  expect(r2.totalTurns).toBe(r1.totalTurns);
+  expect(readFileSync(r2.files[0], "utf8").split("\n\n").length).toBe(
+    r2.totalTurns,
+  );
 });
 
 // ── config: helper roundtrip + self-heal + validate + transcript-path ──────────────────────────
