@@ -36,7 +36,10 @@
   と同じ罠)・挿入後は `fetch` で leak を検証。**Notion に出す prose は発行前に必ず `link-lint.ts` を通す**
   (backtick 外の裸ファイル名/パス=`extract.ts`/`CLAUDE.md` 等を Notion が `http://…` に自動リンク化する罠を、
   人間の注意力でなく決定論ゲートで根治＝`state-lint` と同形)。save/init/project/digest の発行点に配線し
-  selftest で守る。
+  selftest で守る。**Session 本文の構造 (必須 `## ` セクション=Metrics/Decisions/Progress/Highlights/
+  Details の存在・順序・escape leak) は `session-lint.ts` が publish 前にゲートする (`state-lint` の
+  Session 版＝構造のみを守り、捏造=Highlights 創作は LLM 領域で prompts/chat 抽出を地上の真実に縛る)。
+  save の Session content temp file に link-lint と並べて配線し bun test で守る。**
 - **3層メモリ**: Session=各回の出来事 / Decision=なぜ / **Projects (Architecture)=今の技術スタック**
   (言語・lib・CI・mermaid 図、手動更新 `/iroha:project`)。Projects は 1 行=1 プロジェクトの共有 DB、
   `Languages` のみ multi_select、横断検索 (同言語/同 lib の他プロジェクト) に使う。Architecture には

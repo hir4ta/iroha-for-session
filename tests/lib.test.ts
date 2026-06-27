@@ -20,6 +20,7 @@ const INDEX = join(ROOT, "scripts/_lib/index.ts");
 const SEARCH = join(ROOT, "scripts/_lib/search.ts");
 const INTEG = join(ROOT, "scripts/_lib/integrity.ts");
 const STATELINT = join(ROOT, "scripts/_lib/state-lint.ts");
+const SESSIONLINT = join(ROOT, "scripts/_lib/session-lint.ts");
 const LINKLINT = join(ROOT, "scripts/_lib/link-lint.ts");
 const FIX = join(import.meta.dir, "fixtures", "sample.jsonl");
 
@@ -489,6 +490,65 @@ test("state-lint (escapes, missing sections, summary, real mirror)", () => {
   expect(bun([STATELINT, empty]).code).toBe(1);
   const mirror = join(ROOT, ".iroha", "state.md");
   if (existsSync(mirror)) expect(bun([STATELINT, mirror]).code).toBe(0); // real mirror is clean when present
+});
+
+// ── session-lint ─────────────────────────────────────────────────────────────────────────────────
+test("session-lint (escapes, missing/reordered sections, header, optional sections)", () => {
+  const dir = mktmp();
+  const goodLines = [
+    '<callout color="blue_bg">一行サマリ</callout>',
+    "## Metrics",
+    '<callout color="gray_bg">Duration 10 min · 2 prompts</callout>',
+    "## Architecture", // optional — allowed between Metrics and Decisions
+    "diagram",
+    "## Decisions",
+    "| Decision | Why | Rejected |",
+    "## Progress",
+    "- [x] done",
+    "## Highlights",
+    "<details><summary>Highlights (2 exchanges)</summary></details>",
+    "## Failures", // optional — allowed between Highlights and Details
+    "none",
+    "## Details",
+    "<details><summary>Changed files</summary></details>",
+    "",
+  ];
+  const good = join(dir, "good.md");
+  writeFileSync(good, goodLines.join("\n"));
+  expect(bun([SESSIONLINT, good]).code).toBe(0);
+  // missing a required section (drop Progress)
+  const missing = join(dir, "missing.md");
+  writeFileSync(
+    missing,
+    goodLines.filter((l) => l !== "## Progress").join("\n"),
+  );
+  expect(bun([SESSIONLINT, missing]).code).toBe(1);
+  expect(bun([SESSIONLINT, missing]).out).toContain("missing");
+  // reordered (Decisions before Metrics)
+  const reordered = join(dir, "reordered.md");
+  writeFileSync(
+    reordered,
+    "header\n## Decisions\nx\n## Metrics\ny\n## Progress\nz\n## Highlights\nh\n## Details\nd\n",
+  );
+  expect(bun([SESSIONLINT, reordered]).code).toBe(1);
+  expect(bun([SESSIONLINT, reordered]).out).toContain("appears before");
+  // literal escape leak
+  const escapeMd = join(dir, "escapeMd.md");
+  writeFileSync(
+    escapeMd,
+    "header\\n## Metrics\\n## Decisions\\n## Progress\\n## Highlights\\n## Details",
+  );
+  expect(bun([SESSIONLINT, escapeMd]).code).toBe(1);
+  expect(bun([SESSIONLINT, escapeMd]).out).toContain("escape sequence");
+  // no header content before the first heading
+  const noheader = join(dir, "noheader.md");
+  writeFileSync(noheader, goodLines.slice(1).join("\n"));
+  expect(bun([SESSIONLINT, noheader]).code).toBe(1);
+  expect(bun([SESSIONLINT, noheader]).out).toContain("header");
+  // empty
+  const empty = join(dir, "empty.md");
+  writeFileSync(empty, "");
+  expect(bun([SESSIONLINT, empty]).code).toBe(1);
 });
 
 // ── link-lint ──────────────────────────────────────────────────────────────────────────────────

@@ -198,6 +198,15 @@ Wrap each flagged token in backticks and re-lint until it **exits 0** — never 
 link-lint flags. Apply the same gate to **every prose surface** you publish here: the Session
 `content`, the State mirror (step 8), decision page bodies (step 6), and any callout.
 
+**Also lint the Session body's STRUCTURE before publishing — `session-lint.ts`.** link-lint guards
+auto-linkify; it does not check that the body has the canonical sections. Run
+`bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/session-lint.ts" <file>` on the **same temp file** (the
+composed Session `content`); it fails if a required `## ` section (Metrics / Decisions / Progress /
+Highlights / Details) is missing or out of canonical order, or if a literal `\n` / `\t` escape
+leaked. Fix the body and re-lint until it **exits 0** — never publish a Session whose structure the
+lint flags. This is the Session-page analogue of `state-lint`; it guards **structure, not
+semantics** — the You-anchored, non-fabricated Highlights (step 7) remain your responsibility.
+
 Set a clean monochrome page icon:
 `icon: "https://www.notion.so/icons/notebook_gray.svg"`.
 
