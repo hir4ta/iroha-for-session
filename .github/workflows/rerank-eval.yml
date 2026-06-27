@@ -24,14 +24,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # node runs the opt-in heavy-tier model scripts (scripts/*.mjs).
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
 
       # The heavy-tier runtime is a per-user opt-in dep (kept out of the shipped package.json), so
-      # install it here without saving — same as scripts/rerank-setup.sh does for a real user.
-      - name: Install heavy-tier runtime
-        run: npm install --no-save @huggingface/transformers
+      # install it here (CI-ephemeral) — same as scripts/rerank-setup.ts does for a real user.
+      - name: Install deps + heavy-tier runtime
+        run: |
+          bun install --frozen-lockfile
+          bun add @huggingface/transformers
 
       # Cache both models across runs, keyed on the immutable model ids (so the weekly + manual runs
       # reuse them; only a cache miss re-downloads). They live where embed.mjs / rerank.mjs look
@@ -56,8 +63,8 @@ jobs:
       # End-to-end hybrid quality: recall recovery of the BM25 candidate-generation miss, 100%
       # cross-domain abstention, and the reported same-vocab soft-leak rate (recall-first, low-harm).
       - name: Hybrid recall eval (BM25 ∪ dense -> rerank)
-        run: IROHA_MODEL_DIR="$HOME/.iroha/models" npm run test:hybrid
+        run: IROHA_MODEL_DIR="$HOME/.iroha/models" bun run test:hybrid
 
       # Cross-encoder unit precision: 0 false-injection on hard negatives + the JP/EN synonym recall.
       - name: Rerank precision eval (bge-reranker-v2-m3)
-        run: IROHA_MODEL_DIR="$HOME/.iroha/models" npm run test:rerank
+        run: IROHA_MODEL_DIR="$HOME/.iroha/models" bun run test:rerank

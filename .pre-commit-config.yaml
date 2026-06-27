@@ -18,25 +18,25 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
 
-  # biome — lint + format + import sort for JSON / JS / TS (uses the project biome).
+  # biome — lint + format + import sort for JSON / JS / TS (uses the project biome via bun).
   - repo: local
     hooks:
       - id: biome
         name: biome check (write)
-        entry: npx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
+        entry: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
         language: system
         types_or: [javascript, jsx, ts, tsx, json]
         require_serial: false
 
-  # shellcheck — static analysis for the bash runtime (scripts/, hooks/, tests/).
-  # Keep BSD/macOS compatible (no 3-arg awk, etc.).
+  # tsc — type-check the TS runtime (the whole point of the Bun/TS migration).
   - repo: local
     hooks:
-      - id: shellcheck
-        name: shellcheck
-        entry: shellcheck
+      - id: typecheck
+        name: tsc --noEmit
+        entry: bunx tsc --noEmit
         language: system
-        types: [shell]
+        pass_filenames: false
+        files: \.ts$
 
   - repo: https://github.com/crate-ci/typos
     rev: v1.46.0
@@ -49,13 +49,13 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Behavioral tests are the oracle — run on push (mirror CI).
+  # Behavioral tests are the oracle (bun test) — run on push (mirror CI).
   - repo: local
     hooks:
-      - id: test-bash
-        name: bash selftest
-        entry: npm run test:bash
+      - id: bun-test
+        name: bun test (behavioral oracle)
+        entry: bun test
         language: system
         pass_filenames: false
         stages: [pre-push]
-        files: \.(sh|bats)$
+        files: \.ts$

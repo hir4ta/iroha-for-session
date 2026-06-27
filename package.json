@@ -11,13 +11,12 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit",
-    "test:bash": "bash tests/selftest.sh",
-    "test:recall": "bash tests/recall-eval.sh",
-    "test:scale": "bash tests/recall-scale.sh",
-    "test:rerank": "bash tests/rerank-eval.sh",
-    "test:hybrid": "bash tests/hybrid-eval.sh",
-    "test": "bash tests/selftest.sh && bash tests/recall-eval.sh && bash tests/recall-scale.sh && bash tests/rerank-eval.sh && bash tests/hybrid-eval.sh",
-    "rerank:setup": "bash scripts/rerank-setup.sh"
+    "test": "bun test",
+    "test:recall": "bun tests/recall-eval.ts",
+    "test:scale": "bun tests/recall-scale.ts",
+    "test:rerank": "bun tests/rerank-eval.ts",
+    "test:hybrid": "bun tests/hybrid-eval.ts",
+    "rerank:setup": "bun scripts/rerank-setup.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

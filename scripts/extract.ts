@@ -111,7 +111,7 @@ function sortedByTimestamp(records: Rec[]): Rec[] {
     );
 }
 
-function filesView(records: Rec[]): string[] {
+export function filesView(records: Rec[]): string[] {
   const items = toolUses(records)
     .filter(
       (b) => b.name && /^(Edit|Write|MultiEdit|NotebookEdit)$/.test(b.name),
@@ -137,7 +137,7 @@ function filesView(records: Rec[]): string[] {
   return uniq.map((x) => `- \`${x.path}\` (${x.verb})`);
 }
 
-function commandsView(records: Rec[]): string[] {
+export function commandsView(records: Rec[]): string[] {
   const cmds = toolUses(records)
     .filter((b) => b.name === "Bash")
     .map((b) => b.input?.command)
@@ -154,7 +154,7 @@ export function promptsView(records: Rec[]): string[] {
     .map((t) => `- ${t}`);
 }
 
-function toolsView(records: Rec[]): string[] {
+export function toolsView(records: Rec[]): string[] {
   const counts = new Map<string, number>();
   for (const b of toolUses(records)) {
     const name = b.name ?? "";

@@ -67,6 +67,15 @@
   品質は `recall-eval`(FREE tier=86%)/`hybrid-eval`(HEAVY tier=93%・MISS 回復・abstention 100%・
   soft-leak 報告)/`rerank-eval`(cross-encoder 単体精度)で**重なる golden set**(`tests/golden-recall.txt`)
   を計測し、評価の盲点(tier 毎に別 set で回帰を隠す)を作らない。
+- **検索/rerank を外部 lib に置換しない (2026 調査済)**。FREE の自前 BM25(`search.ts`) は MiniSearch/Orama
+  等で置換可能だが、lib が肩代わりするのは BM25 算術 ~40 行のみで **CJK 2-gram tokenizer と importance
+  重み(decision>session・Active>Superseded)は結局自前**＝依存追加の純損 (KISS/YAGNI・世界配布で依存最小)。
+  HEAVY の `embed.mjs`/`rerank.mjs` は **transformers.js(@huggingface/transformers) を維持**: fastembed-js は
+  archived・model2vec は JS 経路なし＝保守された offline 代替が無く、v4 が Bun も公式サポート。terse 日本語で
+  cross-encoder が ~0 を返すのは **model×corpus 固有でライブラリ交換では直らない**(promote-only が正しい緩和)。
+  `embed.mjs`/`rerank.mjs` は **.mjs のまま**: opt-in の重い依存が既定で未インストール＝strict tsc の対象外に
+  する意図的境界 (node spawn・heavy を arm した人だけ node が要る)。将来オプション: スケール時の MiniSearch
+  移行 / HEAVY 軽量化の model2vec(要 JS 移植・性能未検証)。
 - **repo ミラーは `.iroha/state.md`（State 全文）と `.iroha/index.ndjson`（keys＋検索snippet）の 2 つ**
   （ともに commit し teammate は pull で共有）。SessionStart hook は Notion 非到達なので `state.md`
   を注入。**決定の本文はローカルに持たない**（Notion 正本）。index は id/topic/status/date に加え、

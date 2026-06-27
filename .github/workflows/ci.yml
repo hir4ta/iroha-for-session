@@ -11,6 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # node is only for the OPT-IN heavy-tier model scripts (scripts/*.mjs); the FREE tier and all
+      # of `bun test` need only bun. Without the ~700MB models the rerank eval SKIPs (exit 0).
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
@@ -19,20 +25,18 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install dev deps
-        run: npm install
+      - name: Install deps
+        run: bun install --frozen-lockfile
 
       - name: Lint (biome)
-        run: npm run lint
+        run: bun run lint
 
-      - name: Shellcheck
-        run: find scripts hooks tests -name '*.sh' -print0 | xargs -0 shellcheck
+      - name: Typecheck (tsc)
+        run: bun run typecheck
 
       # Secret + typo scans — run them THROUGH pre-commit (not the standalone marketplace actions)
       # so CI uses the EXACT same hooks, pinned versions, and .gitignore / _typos.toml handling as a
-      # developer's local `pre-commit run`. The standalone crate-ci/typos action diverged — it
-      # scanned gitignored node_modules (present after `npm install`) and failed on a vendored
-      # "Hashi" in @types/node, which local pre-commit correctly skips. pre-commit guarantees CI==local.
+      # developer's local `pre-commit run`. pre-commit guarantees CI == local.
       - name: Install pre-commit
         run: pip install pre-commit
       - name: Secret scan (gitleaks)
@@ -40,14 +44,14 @@ jobs:
       - name: Typo scan (typos)
         run: pre-commit run typos --all-files
 
-      - name: Behavioral selftest
-        run: npm run test:bash
+      - name: Behavioral test (bun test — the oracle)
+        run: bun test
 
-      - name: Recall quality eval
-        run: npm run test:recall
+      - name: Recall quality eval (FREE tier BM25)
+        run: bun run test:recall
 
       - name: Recall scale check
-        run: npm run test:scale
+        run: bun run test:scale
 
       - name: Rerank precision eval (skips unless the opt-in model is installed)
-        run: npm run test:rerank
+        run: bun run test:rerank
