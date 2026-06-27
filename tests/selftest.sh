@@ -440,7 +440,15 @@ eq state-lint-summaryonly-fail "1" "$(iroha_state_lint "$SLDIR/summaryonly.md" >
 eq state-lint-empty-fail "1" "$(iroha_state_lint "$SLDIR/empty.md" >/dev/null 2>&1; echo $?)"
 # the project's REAL committed mirror must pass — guards against false positives AND makes CI fail
 # if a corrupt State is ever committed (the recurring rot class, now caught at green/push time).
-eq state-lint-real-mirror "0" "$(iroha_state_lint "$HERE/../.iroha/state.md" >/dev/null 2>&1; echo $?)"
+# A fresh / reset repo has no mirror yet (it regenerates on the first /iroha:save-session), which
+# is not a failure — like integrity.sh treating a missing index as a clean fresh project — so only
+# assert when the mirror is present.
+if [ -f "$HERE/../.iroha/state.md" ]; then
+  realmirror=$(iroha_state_lint "$HERE/../.iroha/state.md" >/dev/null 2>&1; echo $?)
+else
+  realmirror=0   # no mirror yet (fresh / reset repo) — regenerates on first save
+fi
+eq state-lint-real-mirror "0" "$realmirror"
 rm -rf "$SLDIR"
 
 echo "=== integrity (deterministic substrate self-monitoring: malformed/dup-id/dup-active/State-link) ==="
