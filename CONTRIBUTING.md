@@ -6,8 +6,8 @@ plugin — easy to run locally.
 ## Dev setup
 
 ```bash
-git clone https://github.com/hir4ta/iroha-for-notion
-cd iroha-for-notion
+git clone https://github.com/hir4ta/iroha-for-session
+cd iroha-for-session
 npm install                                   # biome (JSON lint/format)
 pre-commit install && pre-commit install --hook-type pre-push
 ```

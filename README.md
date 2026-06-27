@@ -1,4 +1,4 @@
-# iroha for Notion
+# iroha
 
 > **Sessions scatter. iroha remembers.**
 
@@ -10,7 +10,7 @@
 > sessions can recall what was decided, why, what's unfinished, and how things are built.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/hir4ta/iroha-for-notion/actions/workflows/ci.yml/badge.svg)](https://github.com/hir4ta/iroha-for-notion/actions/workflows/ci.yml)
+[![CI](https://github.com/hir4ta/iroha-for-session/actions/workflows/ci.yml/badge.svg)](https://github.com/hir4ta/iroha-for-session/actions/workflows/ci.yml)
 
 ## Why
 
@@ -89,8 +89,8 @@ graph TD
 In Claude Code:
 
 ```
-/plugin marketplace add hir4ta/iroha-for-notion
-/plugin install iroha@iroha-for-notion
+/plugin marketplace add hir4ta/iroha-for-session
+/plugin install iroha@iroha-for-session
 ```
 
 ## Getting started
