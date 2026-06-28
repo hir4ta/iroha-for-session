@@ -70,6 +70,11 @@ OUT="${TMPDIR:-/tmp}/iroha-save-${CLAUDE_SESSION_ID}"; mkdir -p "$OUT"; echo "$O
 # tee to $OUT/extract.json so compose-session.ts (§5) reads .stats/.files/.commands/.tools from it.
 bun "$E" all "$TX" | tee "$OUT/extract.json"
 git config user.name 2>/dev/null || echo "unknown"   # Author
+# Session↔PR link (bounded, FAIL-SOFT): the PR for the current branch, if any. gh absent / unauth /
+# offline / no PR all yield an EMPTY file — this NEVER blocks the save (a missing PR link is fine).
+GH="${CLAUDE_PLUGIN_ROOT}/scripts/_lib/gh.ts"
+bun "$GH" pr "$(git -C "$PWD" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")" > "$OUT/prs.ndjson"
+cat "$OUT/prs.ndjson"   # OPEN-first; prs[0] = the primary PR to put on the Session `PR` property (§5)
 ```
 
 (The full transcript is large and is **not** stored. The chat highlights (step 7) come
@@ -150,6 +155,14 @@ Property map uses SQLite values:
   `[Design/Impl] …` (Type duplicated).
 - `Status`, `Branch`, `Author`, `Summary` — plain strings. `Project` is also written as
   a plain string here, but it is a **SELECT**: its option must already exist (see 5.0).
+- `PR` — the URL of `prs[0]` from §3's `$OUT/prs.ndjson` (the OPEN-first primary PR). **Omit it
+  when the file is empty** (no PR / no gh — the common case for a repo that pushes straight to a
+  branch). It is a **URL** property (the Session↔PR link, relation-free like `Session`). **Ensure
+  the column exists first** (workspaces created before this property predate it): `notion-fetch`
+  the Sessions data source; if it has no `PR` property, `notion-update-data-source <session_ds_id>`
+  `ADD COLUMN "PR" URL` before creating the row. The Session body's PR line is rendered separately
+  by the renderer (§5 passes `prs.ndjson`); this property is what makes the link a first-class,
+  filterable field on the row.
 - `Type` — a JSON array **string**, in the user's conversation language to match the seeded
   options (the English names above are canonical); English-workspace form looks like
   `"[\"Design\", \"Implementation\"]"`.
@@ -166,7 +179,9 @@ round-trips) this step removes. So pass your intel JSON (§4) + the extract (§3
 ```bash
 OUT="${TMPDIR:-/tmp}/iroha-save-${CLAUDE_SESSION_ID}"   # same path as §3 (recomputed, not threaded)
 C="${CLAUDE_PLUGIN_ROOT}/scripts/compose-session.ts"
-bun "$C" "$OUT/intel.json" "$OUT/extract.json" "$OUT/session-body.md"   # prints the path; exit 0 when clean
+# 4th arg = the PR NDJSON from §3 (optional); the renderer adds a PR link line after Metrics when
+# it is non-empty, and omits it otherwise — no other section changes.
+bun "$C" "$OUT/intel.json" "$OUT/extract.json" "$OUT/session-body.md" "$OUT/prs.ndjson"   # prints the path; exit 0 when clean
 ```
 
 The renderer keeps the section headings + structural labels (Decision / Why / Rejected alternatives,

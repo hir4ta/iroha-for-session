@@ -4,6 +4,7 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { parseGhPrs, prsForBranch } from "../scripts/_lib/gh.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const EXTRACT = join(ROOT, "scripts/extract.ts");
@@ -903,4 +905,39 @@ test("link-lint (bare file/path tokens outside backticks/fences/links)", () => {
   expect(ll("```\nextract.sh all\n```\nplain\n").code).toBe(0);
   expect(ll("[State](https://app.notion.com/p/abc123)\n").code).toBe(0);
   expect(ll("v0.2.0 をリリース。総合70/100。Node20警告。\n").code).toBe(0);
+});
+
+// ── gh (Session↔PR link: bounded, fail-soft PR lookup) ───────────────────────────────────────────
+const GHSTUB = join(import.meta.dir, "fixtures", "gh-stub.sh");
+test("gh — parseGhPrs orders OPEN first, tolerates junk", () => {
+  const prs = parseGhPrs(
+    '[{"number":3,"url":"u3","title":"old","state":"MERGED"},{"number":7,"url":"u7","title":"new","state":"OPEN"}]',
+  );
+  expect(prs.map((p) => p.number)).toEqual([7, 3]); // OPEN first, then newest
+  expect(prs[0]?.state).toBe("open"); // lower-cased
+  // a row without a url is dropped (cannot link it)
+  expect(parseGhPrs('[{"number":1,"title":"x","state":"open"}]')).toEqual([]);
+  // junk / non-array / empty all fail-soft to []
+  expect(parseGhPrs("not json")).toEqual([]);
+  expect(parseGhPrs('{"number":1}')).toEqual([]);
+  expect(parseGhPrs("")).toEqual([]);
+});
+test("gh — prsForBranch is fail-soft (no branch / missing binary) and parses via the stub", () => {
+  const prev = process.env.IROHA_GH_BIN;
+  try {
+    // empty branch -> [] without spawning anything
+    expect(prsForBranch("")).toEqual([]);
+    // missing binary -> fail-soft [] (the save must never depend on gh being present)
+    process.env.IROHA_GH_BIN = "/nonexistent/gh-binary";
+    expect(prsForBranch("feature")).toEqual([]);
+    // a working `gh` (the stub) -> parsed + OPEN-first sorted
+    chmodSync(GHSTUB, 0o755);
+    process.env.IROHA_GH_BIN = GHSTUB;
+    const prs = prsForBranch("feature");
+    expect(prs.map((p) => p.number)).toEqual([7, 3]);
+    expect(prs[0]?.url).toBe("https://github.com/o/r/pull/7");
+  } finally {
+    if (prev === undefined) delete process.env.IROHA_GH_BIN;
+    else process.env.IROHA_GH_BIN = prev;
+  }
 });

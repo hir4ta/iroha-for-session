@@ -196,6 +196,39 @@ test("tag chars < > in prose/cells are escaped; structural tags stay raw; still 
   expect(linkLint(body)).toEqual([]);
 });
 
+// ── PR link (Session↔PR) — optional, deterministic, lint-clean, omitted when absent ──────────────
+test("PR link renders OPEN-first when prs are passed; absent when none; stays lint-clean", () => {
+  // render takes prs already sorted (gh.ts sorts OPEN-first); pass in that order.
+  const ordered = [
+    {
+      number: 7,
+      url: "https://github.com/o/r/pull/7",
+      title: "feat: shiny",
+      state: "open",
+    },
+    {
+      number: 3,
+      url: "https://github.com/o/r/pull/3",
+      title: "old",
+      state: "merged",
+    },
+  ];
+  const body = render(INTEL, EX, ordered);
+  expect(body).toContain(
+    "**PR:** [#7 feat: shiny](https://github.com/o/r/pull/7) (open)",
+  );
+  expect(body).toContain("[#3 old](https://github.com/o/r/pull/3) (merged)");
+  // the PR line sits between Metrics and the next section, and the body stays lint-clean
+  expect(body.indexOf("**PR:**")).toBeGreaterThan(body.indexOf("## Metrics"));
+  expect(body.indexOf("**PR:**")).toBeLessThan(body.indexOf("## Decisions"));
+  const f = join(mktmp(), "pr.md");
+  writeFileSync(f, body);
+  expect(sessionLint(f)).toEqual([]);
+  expect(linkLint(body)).toEqual([]);
+  // no prs -> no PR line (backward compatible)
+  expect(render(INTEL, EX)).not.toContain("**PR:**");
+});
+
 // ── CLI end-to-end (self-lint + file write + stdout path) ────────────────────────────────────────
 test("CLI renders to the out file, self-lints clean, prints the path", () => {
   const dir = mktmp();

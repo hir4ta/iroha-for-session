@@ -5,13 +5,19 @@
   `notion-update-page` (`replace_content` で State 全置換) / `notion-search` (リコール、無料プランで動く)。
   **API トークンは使わない**。認証は MCP の OAuth のみ (配布ユーザーは MCP 接続だけ)。
 - **relation プロパティは使わない**。MCP の relation 書き込みに既知バグ (makenotion/notion-mcp-server
-  Issue #45)。Session↔Decision は **URL プロパティ**で連結。安定確認後にネイティブ relation へ昇格可。
+  Issue #45)。Session↔Decision **および Session↔PR** は **URL プロパティ**で連結 (Sessions DB の
+  `PR` URL カラム)。安定確認後にネイティブ relation へ昇格可。
 - **決定論抽出は TypeScript (Bun)**。`scripts/extract.ts` が transcript JSONL から
   files / commands / meta / **prompts**(人間の実発言) / **stats**(メトリクス) /
   **tools**(ツール内訳) / **chat**(整形フルチャット・1ターン上限) を read-only で抽出
   （壊れ/切り詰め行は行ごとの `try/catch JSON.parse` でスキップし全滅させない）。stdout = 要求されたビューのみ、
   診断ログは **必ず stderr**。会話ハイライトの **You は `prompts` の実発言にアンカー**し、
-  Claude が発言を創作しない／成功を誇張しない。
+  Claude が発言を創作しない／成功を誇張しない。**`extract.ts` は pure-local・ネットワーク禁止**
+  (絶対に hang/失敗で save を壊さない)。唯一のネットワーク接触は `scripts/_lib/gh.ts` に隔離する:
+  `gh pr list --head <branch>` を**単発・ハードタイムアウト・リトライ無し**(CI-discipline) で叩き、
+  **gh 不在/未認証/オフライン/PR 無しは全て fail-soft で `[]`** に縮退して save を決して止めない。
+  Session↔PR はこの 1 リンクだけ (PR DB も recall 統合も GitHub 側書き込みもしない＝Phase 0 / KISS)。
+  `IROHA_GH_BIN` で gh バイナリを差し替え可能＝テストは実 gh/ネットワーク無しで fail-soft とパースを検証。
 - **知性は Claude 本体 (スキル内)**。要約・決定抽出・Type 分類は `/save-session` の中で Claude が行う。
   コードから Anthropic API を呼ばない。
 - **append 非対応を前提に設計**。Session ページ = 作成のみ (1 回で全部書く)、Project State = 毎回

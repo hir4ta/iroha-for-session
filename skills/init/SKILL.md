@@ -72,7 +72,7 @@ API token.
 
    ```
    parent: {"type":"page_id","page_id":"<PAGE_ID>"}   title: "Sessions"
-   schema: CREATE TABLE ("Name" TITLE, "Date" DATE, "Project" SELECT('iroha-for-session':blue), "Branch" RICH_TEXT, "Author" RICH_TEXT, "Summary" RICH_TEXT, "Status" SELECT('Complete':green, 'WIP':yellow, 'Interrupted':red), "Type" MULTI_SELECT('Research':blue, 'Requirements':purple, 'Design':orange, 'Implementation':green, 'Fix':red, 'Refactor':brown, 'Review':gray))
+   schema: CREATE TABLE ("Name" TITLE, "Date" DATE, "Project" SELECT('iroha-for-session':blue), "Branch" RICH_TEXT, "PR" URL, "Author" RICH_TEXT, "Summary" RICH_TEXT, "Status" SELECT('Complete':green, 'WIP':yellow, 'Interrupted':red), "Type" MULTI_SELECT('Research':blue, 'Requirements':purple, 'Design':orange, 'Implementation':green, 'Fix':red, 'Refactor':brown, 'Review':gray))
    ```
 
    Decisions:

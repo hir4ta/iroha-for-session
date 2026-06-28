@@ -54,9 +54,10 @@ files it changed, and why.
   `/iroha:check`). It is purely advisory — it **never blocks or auto-approves** the commit —
   and catches a course-reversal at the last moment before code lands.
 - Each saved session also carries a **metrics dashboard** (turns, tool calls, files,
-  duration) and a collapsed **full-chat audit trail**. `/iroha:digest` rolls a week or
-  month into one page; `/iroha:audit` keeps the growing memory clean (duplicate
-  decisions, State drift, stale items).
+  duration), a collapsed **full-chat audit trail**, and — when the branch has one — a
+  **link to its GitHub PR** (found via a bounded, fail-soft `gh` lookup, so a missing PR or
+  no `gh` never blocks the save). `/iroha:digest` rolls a week or month into one page;
+  `/iroha:audit` keeps the growing memory clean (duplicate decisions, State drift, stale items).
 
 ## Memory model — three layers + State
 

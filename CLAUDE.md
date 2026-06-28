@@ -47,7 +47,7 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
 ## アーキテクチャ
 
 - 不変条件は `.claude/rules/architecture.md`。
-- 3 DB (Sessions / Decisions / **Projects**=技術スタック、relation は使わず **URL プロパティで連結**) + プロジェクト 1 枚の State ページ。
+- 3 DB (Sessions / Decisions / **Projects**=技術スタック、relation は使わず **URL プロパティで連結**) + プロジェクト 1 枚の State ページ。Session は **`PR` URL カラム**で PR にも連結する (`gh.ts` が境界付き・fail-soft で抽出＝extract の pure-local 不変を破らない唯一のネットワーク隔離点。Phase 0=リンクのみ・PR DB や GitHub 側書き込みはしない)。
 - **container は flat 蓄積を作らない**: 直下は ガイド + 3 DB + `States`/`Digests` フォルダ固定 (State はプロジェクト毎・Digest は実行毎にフォルダ配下へ)。**Decision の `Topic` は一級 SELECT** (title parse でなく明示、By Topic view で family 俯瞰、`Project` 同様 save が ensure-option)。大量データは**ページ階層でなく Notion ビュー** (Recent/Calendar/By Month/By Topic/Active) で捌く。State と Projects 行は分離維持し相互リンク (auto/manual のカデンツが別)。
 - トリガーは手動 `/save-session` (記録) / `/iroha:decide` (決定 1 行を即台帳化＝軽量 capture) / `/iroha:recall` (深い semantic 検索=notion-search＋index で過去の決定・類似実装) / `/iroha:project` (スタック手動更新)。SessionStart hook は repo の `.iroha/state.md` を注入。UserPromptSubmit hook は毎プロンプト**ローカル BM25**(`search.ts`/index)で関連決定を proactively 注入 (LLM/ネットワーク不要)。**コーパスが小さい間 (既定 8 行未満) は proactive 注入を止める** (cold-start gate＝極小コーパスで BM25 IDF が誤較正＝誤発火を防ぐ。明示 `/iroha:recall` は常に動く・台帳が育てば自動解除)。
 

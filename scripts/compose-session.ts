@@ -23,6 +23,7 @@
 // Usage: compose-session.ts <intel.json> <extract.json> <out.md>
 
 import { readFileSync, writeFileSync } from "node:fs";
+import type { Pr } from "./_lib/gh.ts";
 import { linkLint } from "./_lib/link-lint.ts";
 import { sessionLint } from "./_lib/session-lint.ts";
 
@@ -124,7 +125,17 @@ function prose(s: string): string {
   return escapeTags(backtickTokens(oneLine(s)));
 }
 
-export function render(intel: Intel, ex: Extract): string {
+// Sanitize a PR title for embedding INSIDE a [text](url) link: collapse whitespace and drop the few
+// chars that would break the markdown link or open a Notion tag (`]` `)` `<` `>`). The url comes from
+// gh and is trusted; the title is the only free text.
+function prTitle(t: string): string {
+  return oneLine(t)
+    .replace(/[\][()<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function render(intel: Intel, ex: Extract, prs: Pr[] = []): string {
   const out: string[] = [];
   const push = (s = "") => out.push(s);
 
@@ -146,6 +157,23 @@ export function render(intel: Intel, ex: Extract): string {
   );
   push("</callout>");
   push();
+
+  // PR link (optional) — the Session↔PR URL link (Session row also carries it as a `PR` property).
+  // The PR(s) come deterministically from gh.ts (OPEN first); a [text](url) link is PROTECTED from
+  // backtick/escape, so it renders as a clickable link. Omitted entirely when there is no PR (gh
+  // missing / unauth / no PR for the branch all fail-soft to an empty list upstream).
+  if (prs.length > 0) {
+    const links = prs
+      .map((p) => {
+        const t = prTitle(p.title);
+        const label = t ? `#${p.number} ${t}` : `#${p.number}`;
+        const st = p.state ? ` (${p.state})` : "";
+        return `[${label}](${p.url})${st}`;
+      })
+      .join(" · ");
+    push(`**PR:** ${links}`);
+    push();
+  }
 
   // ## Architecture (optional) — caption first (so a reader never asks "a diagram of what?"), then
   // the mermaid block verbatim (no escaping, no auto-backtick inside a code fence).
@@ -270,16 +298,23 @@ function detailsToggle(out: string[], summary: string, items: string[]): void {
 }
 
 if (import.meta.main) {
-  const [intelPath, extractPath, outPath] = process.argv.slice(2);
+  const [intelPath, extractPath, outPath, prsPath] = process.argv.slice(2);
   if (!intelPath || !extractPath || !outPath) {
     process.stderr.write(
-      "usage: compose-session.ts <intel.json> <extract.json> <out.md>\n",
+      "usage: compose-session.ts <intel.json> <extract.json> <out.md> [prs.ndjson]\n",
     );
     process.exit(2);
   }
   const intel = JSON.parse(readFileSync(intelPath, "utf8")) as Intel;
   const ex = JSON.parse(readFileSync(extractPath, "utf8")) as Extract;
-  const body = render(intel, ex);
+  // Optional 4th arg = the NDJSON gh.ts emits (one PR per line). Absent / empty -> no PR line.
+  const prs: Pr[] = prsPath
+    ? readFileSync(prsPath, "utf8")
+        .split("\n")
+        .filter((l) => l.trim() !== "")
+        .map((l) => JSON.parse(l) as Pr)
+    : [];
+  const body = render(intel, ex, prs);
   writeFileSync(outPath, body);
 
   // Safety net: the body is lint-clean by construction. If either lint fires, that is a renderer
