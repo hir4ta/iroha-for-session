@@ -1,11 +1,11 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
+  "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "iroha-for-notion",
+      "name": "iroha-for-session",
       "devDependencies": {
-        "@biomejs/biome": "^2.4.16",
+        "@biomejs/biome": "2.5.1",
         "@types/bun": "1.3.14",
         "fast-check": "4.8.0",
         "typescript": "6.0.3",
