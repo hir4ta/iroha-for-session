@@ -89,8 +89,10 @@ async function run(): Promise<number> {
   writeFileSync(marker, "");
 
   // 6. Cheap local recall; keep only ACTIVE decisions (a Superseded one is not a rule you can violate).
-  const hits = (
-    await recallLocal(root, query, Number(process.env.IROHA_CHECK_TOPN ?? "3"))
+  const hits = recallLocal(
+    root,
+    query,
+    Number(process.env.IROHA_CHECK_TOPN ?? "3"),
   ).filter((h) => h.type === "decision" && h.status === "Active");
   if (hits.length === 0) return 0;
 

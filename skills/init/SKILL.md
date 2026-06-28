@@ -210,18 +210,9 @@ API token.
       `/iroha:recall <topic>`; refresh the stack with `/iroha:project` when it changes."
     - that **proactive recall is now armed**: each substantive prompt gets a bounded local recall
       of relevant past decisions (disable with `IROHA_RECALL_DISABLE=1`; check readiness with
-      `bun "${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.ts" --selfcheck`).
-
-    **Optional higher-precision recall (opt-in, heavy).** Proactive recall runs on the dependency-free
-    TS BM25 stage by default — zero deps, instant. For higher precision (a local cross-encoder reranker
-    that filters out same-vocabulary-but-off-topic decisions BM25 cannot separate), the user can run —
-    **from ANY project cwd** (not `bun run rerank:setup`, which only resolves inside the iroha repo;
-    `bun add` installs into the plugin cache, never the user's project) —
-    `bun "${CLAUDE_PLUGIN_ROOT}/scripts/rerank-setup.ts"` once: it installs the @huggingface/transformers
-    dep (via `bun add`, no node/npm needed) and downloads a local model
-    (~570MB for the default multilingual model, or set
-    `IROHA_RERANK_MODEL=hotchpotch/japanese-reranker-xsmall-v2` for ~37MB). Mention this as an option,
-    do **not** run it as part of init — a fresh install must stay dependency-free.
+      `bun "${CLAUDE_PLUGIN_ROOT}/hooks/recall-inject.ts" --selfcheck`). It is a dependency-free TS
+      BM25 over the local index — zero deps, instant, offline. For deeper, semantic lookups the user
+      runs `/iroha:recall <topic>` (Notion's own semantic search, free plan); no local models to install.
 
 ## Notes
 

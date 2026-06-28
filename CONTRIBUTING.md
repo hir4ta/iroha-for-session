@@ -26,9 +26,10 @@ bunx tsc --noEmit     # types
 bun run lint          # biome check .
 ```
 
-Quality evals are separate (and slower): `bun tests/recall-eval.ts` (FREE BM25 recall) /
-`bun tests/hybrid-eval.ts` (opt-in HEAVY tier — SKIPs cleanly when the local models are
-absent). See [`.claude/rules/testing.md`](.claude/rules/testing.md) for the full set.
+Quality evals are separate (and slower): `bun tests/recall-eval.ts` (local BM25 recall) /
+`bun tests/recall-scale.ts` (scale). Both run against a frozen fixture corpus
+(`tests/fixtures/recall-corpus`), so a workspace re-save never drifts them. See
+[`.claude/rules/testing.md`](.claude/rules/testing.md) for the full set.
 
 CI runs the same checks on every push and PR.
 

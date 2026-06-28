@@ -13,10 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:recall": "bun tests/recall-eval.ts",
-    "test:scale": "bun tests/recall-scale.ts",
-    "test:rerank": "bun tests/rerank-eval.ts",
-    "test:hybrid": "bun tests/hybrid-eval.ts",
-    "rerank:setup": "bun scripts/rerank-setup.ts"
+    "test:scale": "bun tests/recall-scale.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

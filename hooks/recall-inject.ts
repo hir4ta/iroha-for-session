@@ -113,8 +113,8 @@ async function run(): Promise<number> {
   if (existsSync(marker)) return 0;
   writeFileSync(marker, "");
 
-  // 5. Local recall over the keys-only index (FREE BM25 ∪ opt-in HEAVY dense+rerank promotion).
-  const hits = await recallLocal(
+  // 5. Local recall over the keys-only index (dependency-free BM25 — no LLM, no network, no model).
+  const hits = recallLocal(
     root,
     prompt,
     Number(process.env.IROHA_RECALL_TOPN ?? "3"),

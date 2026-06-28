@@ -16,8 +16,8 @@
 // KNOWN LIMITATION (abstention is scoped, not absolute). The negatives here are CROSS-DOMAIN
 // (different language AND topic), which a pure-lexical pass abstains on cleanly. An off-topic prompt
 // that shares the corpus's *software* vocabulary can clear the floor and leak a hit — an inherent
-// limit of lexical recall on a small, single-domain corpus, fixed by the opt-in SEMANTIC stage
-// measured in hybrid-eval. The floor is intentionally NOT raised (that would trade away recall).
+// limit of lexical recall on a small, single-domain corpus. The fix is the deep /iroha:recall
+// semantic stage (Notion's own search), not a raised floor (that would trade away recall).
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -32,7 +32,7 @@ const MINSCORE = Number(process.env.IROHA_RECALL_MINSCORE ?? "1.2"); // producti
 const RECALL_THRESHOLD = 80; // require Recall@K >= 80%
 const ABSTAIN_THRESHOLD = 100; // require 100% honest abstention
 
-// Golden set: single source of truth tests/golden-recall.txt (shared with hybrid-eval).
+// Golden set: tests/golden-recall.txt.
 const golden = readFileSync(join(import.meta.dir, "golden-recall.txt"), "utf8")
   .split("\n")
   .map((l) => l.trim())

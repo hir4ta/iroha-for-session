@@ -44,47 +44,36 @@
   (言語・lib・CI・mermaid 図、手動更新 `/iroha:project`)。Projects は 1 行=1 プロジェクトの共有 DB、
   `Languages` のみ multi_select、横断検索 (同言語/同 lib の他プロジェクト) に使う。Architecture には
   「なぜ」を書かず Decisions へリンク。
-- **リコールは2段 (Adaptive-RAG ルーティング)**。①常時の**安価ローカル前段**=
-  `scripts/_lib/recall.ts :: recallLocal`。**FREE tier**(既定・無依存)= `search.ts` の
-  自前 **BM25**(TS・CJK 2-gram トークナイズ・status/type 重み・英語機能語ストップワード除去=recall 中立で
-  romaji 識別子 `iroha-for-session` 由来の "for" 等が cross-domain 偽一致するのを根治)。LLM もネットワークも要らず即時・
-  オフライン・無料で、UserPromptSubmit hook が毎プロンプト proactively に注入する。**HEAVY tier**
-  (opt-in・`rerank_enabled`=true で arm)= **BM25 ∪ dense**(`scripts/embed.ts`=ローカル bi-encoder
-  `multilingual-e5-small`)で候補生成し、cross-encoder(`scripts/rerank.ts`=`bge-reranker-v2-m3`)が
-  **強い意味一致を BM25 advisory の上に promote する(veto はしない)**。理由: cross-encoder はこの
-  terse な日本語コーパスで**バイモーダル**(近言い換えは>0.4、希少な実マッチ「連結: relation でなく
-  URL」は~0.003 で off-topic と区別不能)。veto 設計は実マッチを黙って落とし**recall を犠牲**にする
-  (旧 rerank tier がそうで、BM25 専用の recall-eval が end-to-end を測らず盲点化していた)。よって
-  BM25 ヒットは sacrosanct(recall=北極星)、dense は候補生成漏れ(=今まで直せなかった MISS)を**足す**だけ。
-  結果は単調(hybrid recall ≥ BM25 recall)。同一語彙の偽陽性 leak は BM25/dense/合意/cross-encoder の
-  どれでも実マッチと分離不能=固有限界として**正直に計測**(`hybrid-eval.ts` が soft-leak を報告)、
-  ただし advisory なので低害(floor は上げない・**coverage gate も入れない**)。floor 引き上げも
-  coverage≥2 gate も**単一強語マッチの実 recall を犠牲**にし recall-sacrosanct に反する: coverage≥2 は
-  selftest の `oauth flow`→`s1`(doc は `oauth` のみ含む単一トークン正答)を落とすことで実証済 ＝ golden
-  だけ見た「無損失」評価は単一強語クラスを盲点化する。precision は意図的に deferred な semantic 段の仕事。②深い**semantic 後段**= `/iroha:recall` が
-  `notion-search`(無料で動く)で言い換えも拾い、`notion-fetch` で Rationale/Alternatives/変更ファイル
-  まで合成する。前段で足りる時は後段を起動しない(コスト/遅延ゼロ)。index 全件列挙(`query-data-sources`
-  が有料＝列挙不能を補完)で dedup・abstention・audit を**完全**に行う。`/iroha:recall` は
-  relevance+recency+importance で少数を edges-first に返す (該当無しは正直に abstain)。
-  supersede は `トピック:` 前方一致＋index、加えて search.ts の近傍検索で別トピック名の重複も拾う。
-  品質は `recall-eval`(FREE tier=86%)/`hybrid-eval`(HEAVY tier=93%・MISS 回復・abstention 100%・
-  soft-leak 報告)/`rerank-eval`(cross-encoder 単体精度)で**重なる golden set**(`tests/golden-recall.txt`)
-  を計測し、評価の盲点(tier 毎に別 set で回帰を隠す)を作らない。
-- **検索/rerank を外部 lib に置換しない (2026 調査済)**。FREE の自前 BM25(`search.ts`) は MiniSearch/Orama
-  等で置換可能だが、lib が肩代わりするのは BM25 算術 ~40 行のみで **CJK 2-gram tokenizer と importance
-  重み(decision>session・Active>Superseded)は結局自前**＝依存追加の純損 (KISS/YAGNI・世界配布で依存最小)。
-  HEAVY の `embed.ts`/`rerank.ts` は **transformers.js(@huggingface/transformers) を維持**: fastembed-js は
-  archived・model2vec は JS 経路なし＝保守された offline 代替が無く、v4 が Bun を公式サポート。terse 日本語で
-  cross-encoder が ~0 を返すのは **model×corpus 固有でライブラリ交換では直らない**(promote-only が正しい緩和)。
-  `embed.ts`/`rerank.ts` は **in-process import で呼ぶ (.ts・node subprocess なし)**: transformers v4 が Bun を
-  公式サポートしたので recall.ts は `node` を spawn せず `denseRank`/`rerankPromote` を直接 await する。重い依存は
-  **変数 specifier の動的 import** (`const TRANSFORMERS = "@huggingface/transformers"; await import(TRANSFORMERS)`)
-  で呼ぶので tsc は非リテラル import を解決せず `any` のまま通る＝**既定で未インストールでも strict tsc/`bun test`
-  を通り** (`bun add --no-save` で arm した人だけ実体が要る)、FREE tier は dep ゼロのまま (動的 import は heavy
-  分岐内でのみ実行)。これは旧「`embed.mjs`/`rerank.mjs` は .mjs のまま・node spawn で strict tsc 対象外」を
-  **supersede** する (v4 の Bun サポートで node/npm 依存が消え、変数 import で .ts 化と tsc 両立が可能に＝
-  query 時も setup 時も bun 一本)。将来オプション: スケール時の MiniSearch 移行 / HEAVY 軽量化の
-  model2vec(要 JS 移植・性能未検証)。
+- **リコールは2段だがローカルにモデルを持たない**。①常時の**安価ローカル前段**=
+  `scripts/_lib/recall.ts :: recallLocal` = `search.ts` の自前 **BM25**(TS・CJK 2-gram トークナイズ・
+  status/type 重み・英語機能語ストップワード除去=recall 中立で romaji 識別子 `iroha-for-session` 由来の
+  "for" 等が cross-domain 偽一致するのを根治)。LLM もネットワークもモデルも要らず即時・オフライン・**無依存**で、
+  UserPromptSubmit hook が毎プロンプト proactively に注入する。precision は意図的に deferred=後段の semantic
+  段の仕事。同一語彙の偽陽性 leak は固有限界として許容し floor は上げない・**coverage gate も入れない**
+  (どちらも**単一強語マッチの実 recall を犠牲**にし recall-sacrosanct に反する: coverage≥2 は selftest の
+  `oauth flow`→`s1`=doc が `oauth` のみ含む単一トークン正答を落とすことで実証済)。②深い**semantic 後段**=
+  `/iroha:recall` が `notion-search`(無料で動く)で言い換えも拾い、`notion-fetch` で Rationale/Alternatives/
+  変更ファイルまで合成する。**この後段は `context: fork` の subagent** で走らせ、大量の中間読み(複数 DB の
+  notion-search・本文の notion-fetch・index 列挙)でメイン文脈を汚さず curated な答えだけ返す。前段で足りる時は
+  後段を起動しない(コスト/遅延ゼロ)。index 全件列挙(`query-data-sources` が有料＝列挙不能を補完)で dedup・
+  abstention・audit を**完全**に行う。`/iroha:recall` は relevance+recency+importance で少数を edges-first に
+  返す(該当無しは正直に abstain)。supersede は `トピック:` 前方一致＋index、加えて search.ts の近傍検索で別
+  トピック名の重複も拾う。品質は `recall-eval`(BM25 recall)/`recall-scale`(スケール)で **golden set**
+  (`tests/golden-recall.txt`)を**凍結 fixture コーパス**(`tests/fixtures/recall-corpus/.iroha/index.ndjson`)に
+  対して計測する。生きた index に結合させない=ワークスペース再 save で決定 id が churn しても golden が
+  ドリフトせず CI が落ちない(過去3回 red になった真因を根治)。fixture 再生成は意図的に行う時だけ。
+- **ローカル dense embed / cross-encoder rerank の HEAVY tier は撤去した**(旧「リコールは2段(HEAVY tier)」
+  「HEAVY を Bun in-process 化」決定を **supersede**)。理由: 小コーパス(決定数十件)で BM25 ≈ dense、
+  cross-encoder は terse 日本語で実マッチに ~0 を返すバイモーダルで効果が薄く、transformers.js＋数百MB×2
+  モデルで install が重い。そして深い semantic は後段の `notion-search` が**無料・install 不要**で担うため
+  ローカルモデル tier は冗長＝過剰実装だった。前段=無依存 BM25、後段=notion-search で必要十分。
+  `scripts/embed.ts` / `scripts/rerank.ts` / `scripts/rerank-setup.ts` / `tests/hybrid-eval.ts` /
+  `tests/rerank-eval.ts` と transformers.js 依存・モデル DL・`rerank_enabled` flag を全廃し、プラグインは
+  **真の zero-install** に戻した(`recall.ts` は BM25 への薄い wrapper)。
+- **FREE BM25 を外部 lib に置換しない (2026 調査済)**。`search.ts` は MiniSearch/Orama 等で置換可能だが、
+  lib が肩代わりするのは BM25 算術 ~40 行のみで **CJK 2-gram tokenizer と importance 重み(decision>session・
+  Active>Superseded)は結局自前**＝依存追加の純損 (KISS/YAGNI・世界配布で依存最小)。将来オプション: スケール
+  時の MiniSearch 移行。
 - **repo ミラーは `.iroha/state.md`（State 全文）と `.iroha/index.ndjson`（keys＋検索snippet）の 2 つ**
   （ともに commit し teammate は pull で共有）。SessionStart hook は Notion 非到達なので `state.md`
   を注入。**決定の本文はローカルに持たない**（Notion 正本）。index は id/topic/status/date に加え、

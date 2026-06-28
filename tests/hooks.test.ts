@@ -1,4 +1,4 @@
-// Behavioral oracle (Bun test) for the hooks + recall orchestration + opt-in model gates. Ported
+// Behavioral oracle (Bun test) for the hooks + local recall orchestration. Ported
 // 1:1 from the former tests/selftest.sh. Hooks are exercised as real subprocesses (stdin -> hook
 // JSON on stdout), matching how Claude Code invokes them.
 import { afterAll, beforeAll, expect, test } from "bun:test";
@@ -12,8 +12,6 @@ const SS = join(ROOT, "hooks/session-start.ts");
 const RI = join(ROOT, "hooks/recall-inject.ts");
 const CI = join(ROOT, "hooks/check-inject.ts");
 const RECALL = join(ROOT, "scripts/_lib/recall.ts");
-const EMBED = join(ROOT, "scripts/embed.ts");
-const RERANK = join(ROOT, "scripts/rerank.ts");
 
 type Run = { out: string; err: string; code: number };
 function run(
@@ -35,8 +33,7 @@ const cfgSet = (dir: string, k: string, v: string) =>
 const DECISION_ROW =
   '{"type":"decision","id":"389822c6-938a-812a-86fc-f709b3428ec2","topic":"連結","status":"Active","date":"2026-06-24","title":"連結: relation でなく URL","project":"demo","text":"MCP の relation 書き込みに既知バグがあるので URL プロパティで連結する"}';
 
-let RIDATA: string; // recall_enabled, no rerank (FREE tier)
-let RIHEAVY: string; // recall_enabled + rerank_enabled (HEAVY)
+let RIDATA: string; // recall_enabled (local BM25 recall)
 let RIDATA3: string; // decisions_ds_id only (no recall_enabled)
 let RIDATA2: string; // empty (uninitialized)
 let RIPROJ: string; // project root holding the one-row index
@@ -44,7 +41,6 @@ let RICACHE: string; // TMPDIR for per-prompt cache markers
 
 beforeAll(() => {
   RIDATA = mktmp();
-  RIHEAVY = mktmp();
   RIDATA3 = mktmp();
   RIDATA2 = mktmp();
   RIPROJ = mktmp();
@@ -52,15 +48,12 @@ beforeAll(() => {
   cfgSet(RIDATA, "decisions_ds_id", "DSID");
   cfgSet(RIDATA, "session_ds_id", "SSID");
   cfgSet(RIDATA, "recall_enabled", "true");
-  cfgSet(RIHEAVY, "decisions_ds_id", "DSID");
-  cfgSet(RIHEAVY, "recall_enabled", "true");
-  cfgSet(RIHEAVY, "rerank_enabled", "true");
   cfgSet(RIDATA3, "decisions_ds_id", "DSID");
   mkdirSync(join(RIPROJ, ".iroha"), { recursive: true });
   writeFileSync(join(RIPROJ, ".iroha", "index.ndjson"), `${DECISION_ROW}\n`);
 });
 afterAll(() => {
-  for (const d of [RIDATA, RIHEAVY, RIDATA3, RIDATA2, RIPROJ, RICACHE])
+  for (const d of [RIDATA, RIDATA3, RIDATA2, RIPROJ, RICACHE])
     rmSync(d, { recursive: true, force: true });
 });
 
@@ -213,59 +206,11 @@ test("recall-inject — selfcheck (offline readiness probe)", () => {
   expect(sc2.out).toContain("READY");
 });
 
-// ── opt-in model gates (bun + the .ts contract; graceful fallback to BM25) ────────────────────────
-test("rerank gate — contract paths + BM25 fallback", () => {
-  expect(
-    run(["bun", RERANK], { input: '{"query":"x","docs":[]}' }).out.trim(),
-  ).toBe("[]");
-  expect(run(["bun", RERANK], { input: "not-json" }).code).toBe(2);
-  expect(
-    run(["bun", RERANK], {
-      input: '{"query":"x","docs":[{"id":"a","text":"b"}]}',
-      env: { IROHA_MODEL_DIR: mktmp() },
-    }).code,
-  ).toBe(3);
-  // armed (RIHEAVY) but model absent -> MUST still inject the BM25 advisory hit.
-  expect(
-    ri(
-      "relationプロパティで連結すべきか検討したい",
-      "sidRR1",
-      { IROHA_MODEL_DIR: mktmp() },
-      RIHEAVY,
-    ).out,
-  ).toContain("連結: relation でなく URL");
-});
-test("embed gate — contract paths", () => {
-  expect(
-    run(["bun", EMBED], { input: '{"query":"x","docs":[]}' }).out.trim(),
-  ).toBe("[]");
-  expect(run(["bun", EMBED], { input: "not-json" }).code).toBe(2);
-  expect(
-    run(["bun", EMBED], {
-      input: '{"query":"x","docs":[{"id":"a","text":"b"}]}',
-      env: { IROHA_MODEL_DIR: mktmp() },
-    }).code,
-  ).toBe(3);
-});
-
-// ── recall.ts (FREE tier; HEAVY armed but no model keeps BM25, never drops one) ──────────────────
-test("recall.ts — free tier returns the BM25 advisory hit", () => {
+// ── recall.ts (local BM25 advisory over the keys-only index) ──────────────────────────────────────
+test("recall.ts — returns the BM25 advisory hit", () => {
   const r = run(
     ["bun", RECALL, RIPROJ, "relationプロパティで連結すべきか", "3"],
     { env: { IROHA_CONFIG_DIR: RIDATA3 } },
-  );
-  expect(r.out).toContain("連結: relation でなく URL");
-});
-test("recall.ts — heavy armed + no model keeps the BM25 hit", () => {
-  const r = run(
-    ["bun", RECALL, RIPROJ, "relationプロパティで連結すべきか", "3"],
-    {
-      env: {
-        IROHA_CONFIG_DIR: RIDATA3,
-        IROHA_RECALL_FORCE_HEAVY: "1",
-        IROHA_MODEL_DIR: mktmp(),
-      },
-    },
   );
   expect(r.out).toContain("連結: relation でなく URL");
 });
@@ -288,7 +233,6 @@ function ci(
       CLAUDE_PLUGIN_ROOT: ROOT,
       IROHA_CONFIG_DIR: cfg,
       TMPDIR: RICACHE,
-      IROHA_RERANK_DISABLE: "1",
       ...extraEnv,
     },
   });

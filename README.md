@@ -34,17 +34,10 @@ changed, and why.
   proactively surfaces the most relevant past decisions — so Claude consults them *before*
   rebuilding, at zero per-prompt latency or token cost. When that pointer isn't enough,
   `/iroha:recall` escalates to Notion **semantic** search (`notion-search`, free plan) for the
-  full rationale and rejected alternatives. The free tier carries most of the weight; the semantic
-  stage catches the paraphrases it misses.
-  *Optional:* a local **hybrid** tier (armed once by the `bun "<plugin>/scripts/rerank-setup.ts"`
-  command `/iroha:init` prints — runs from any project, installs into the plugin not your cwd) — a dense bi-encoder
-  (`multilingual-e5-small`) generates the semantic near-matches BM25 can't (zero lexical overlap),
-  and a **cross-encoder reranker** (`bge-reranker-v2-m3`) *promotes* the strong matches above the
-  BM25 list. Measured on this repo's index: it recovers a candidate-generation MISS the lexical
-  stage can't (Recall@3 86%→93%) while keeping cross-domain abstention at 100%. The reranker only
-  promotes, never vetoes a BM25 hit — vetoing cost real recall (a terse true match scores like an
-  off-topic one). Opt-in and heavy (two local models, ~700MB total) — a fresh install stays
-  on the dependency-free BM25 tier and pays nothing.
+  full rationale and rejected alternatives. The local BM25 is the always-on proactive net at zero
+  cost; the semantic stage is Notion's own search (no local models) — so recall stays dependency-free
+  with nothing to install, and the deep `/iroha:recall` runs as a forked subagent to keep its bulky
+  lookups out of the main context.
 - A SessionStart hook injects the project's **State** (from a small repo mirror) so
   Claude proactively tells you where you left off and what's unfinished. After `/compact`
   or auto-compact it also **re-injects the current session's own thread** (your prompts +

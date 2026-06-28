@@ -3,9 +3,10 @@
 - **`bun test`** が**振る舞いの正本 (behavioral oracle)**。`tests/*.test.ts` が各モジュールを
   in-process import して直接検証 (hooks のみ subprocess で stdin→stdout を検証)。`bun test` (0 = ALL PASS)。
   型は `bunx tsc --noEmit`、lint/format は `bun run lint` (biome)。
-- 品質 eval は別: `bun tests/recall-eval.ts` (FREE BM25) / `recall-scale.ts` (スケール) /
-  `hybrid-eval.ts` (HEAVY) / `rerank-eval.ts` (cross-encoder)。HEAVY 系はモデル(`~/.iroha/models`)が
-  無ければ SKIP (exit 0)。
+- 品質 eval は別: `bun tests/recall-eval.ts` (BM25 recall) / `recall-scale.ts` (スケール)。
+  両者とも**凍結 fixture コーパス** (`tests/fixtures/recall-corpus/.iroha/index.ndjson`) に対して回す
+  ので、ワークスペース再 save で決定 id が churn しても golden がドリフトしない (生きた index に
+  結合させない)。fixture の再生成は意図的に行う時だけ (`cp .iroha/index.ndjson tests/fixtures/...`)。
 - 抽出ロジックは `tests/fixtures/` に**実トランスクリプトと同形の JSONL**を置いて検証する。
   最低限おさえる観点:
   - `type=user` の content が文字列 (= 人間の発言) と、配列の `tool_result` (= ツール出力) の判別

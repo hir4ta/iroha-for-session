@@ -2,7 +2,14 @@
 name: recall
 description: Search this project's iroha memory — past decisions ("did we decide against X? why?") and similar past work ("have we built something like this before?"). Uses Notion semantic search (works on the free plan) over the Sessions and Decisions databases. Triggers on "/iroha:recall", and naturally when the user asks "did we decide X?", "why did we choose X?", or "have we built something like this before?".
 argument-hint: "[query]"
+context: fork
 ---
+
+<!-- context: fork — the deep recall reads a lot (notion-search across DBs, notion-fetch full page
+bodies, index enumeration) to synthesize an answer. Running it in a forked subagent keeps that bulky
+intermediate context out of the main thread: only the curated answer returns. This is the deliberate,
+LLM-quality second stage — the cheap always-on first stage stays the dependency-free BM25 hook. -->
+
 
 # iroha: recall
 
@@ -108,23 +115,23 @@ these terms* — retry with different terms before concluding it is absent.
 
 ## Notes
 
-- **Two-stage recall (Adaptive-RAG routing).** The `UserPromptSubmit` hook
-  (`recall-inject.ts` → `recall.ts :: recallLocal`) runs the cheap, always-on **local**
-  stage on every substantive prompt — offline, no LLM, no Notion round-trip — and proactively
-  surfaces the top matching decisions as pointers. Its FREE tier is a hand-rolled TS BM25 (`search.ts`);
-  an OPT-IN HEAVY tier adds a local dense bi-encoder (`embed.ts`) for the semantic near-matches
-  BM25 misses and a cross-encoder that *promotes* strong matches above the BM25 list (it never
-  vetoes a BM25 hit — that cost real recall). **This skill is the deep second stage**: the user
-  or Claude escalates to `/iroha:recall` when that cheap pointer is not enough, and here we add
-  Notion **semantic** search plus full `Rationale` / `Alternatives` / changed-files synthesis.
+- **Two-stage recall.** The `UserPromptSubmit` hook (`recall-inject.ts` → `recall.ts :: recallLocal`)
+  runs the cheap, always-on **local** stage on every substantive prompt — offline, no LLM, no Notion
+  round-trip — and proactively surfaces the top matching decisions as pointers. It is a hand-rolled TS
+  BM25 over the keys-only index (`search.ts`): lexical, instant, dependency-free, which is what a
+  per-prompt hook needs (a per-prompt LLM/model was deliberately avoided). **This skill is the deep
+  second stage** — the LLM-quality, semantic one: the user or Claude escalates to `/iroha:recall` when
+  that cheap pointer is not enough, and here we add Notion **semantic** search (free plan) plus full
+  `Rationale` / `Alternatives` / changed-files synthesis. The local BM25 is the proactive net; this
+  skill is the precise follow-up.
 - **The local stage is recall-first; its pointers are advisory.** On a small, single-domain
   corpus an off-topic prompt that merely shares the project's *software* vocabulary can surface an
-  irrelevant decision — and no local signal (BM25 score, dense rank, or the cross-encoder's low
-  end) cleanly separates that from a real-but-terse match (measured). The floor is intentionally
-  not raised to suppress it, because that trades away real recall (the north-star value). So the
-  hook's injected pointers are **advisory** ("possibly relevant; verify"): if a surfaced decision
-  does not actually bear on the request, treat it as noise and ignore it — never force it into the
-  answer. This `/iroha:recall` semantic stage + your judgement are the precision filter.
+  irrelevant decision, and the BM25 score alone cannot cleanly separate that from a real-but-terse
+  match (measured). The floor is intentionally not raised to suppress it, because that trades away
+  real recall (the north-star value). So the hook's injected pointers are **advisory** ("possibly
+  relevant; verify"): if a surfaced decision does not actually bear on the request, treat it as noise
+  and ignore it — never force it into the answer. This `/iroha:recall` semantic stage + your
+  judgement are the precision filter.
 - Recall reads decision/session *content* live from Notion (the single source of truth),
   so it is always current. The repo's `.iroha/index.ndjson` is **not** a content mirror —
   it holds keys + a short derived search snippet (id / topic / status / date / title / a

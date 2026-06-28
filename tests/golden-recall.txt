@@ -1,6 +1,4 @@
-# Golden set for local recall quality — the SINGLE source of truth shared by:
-#   tests/recall-eval.ts   (FREE tier: hand-rolled TS BM25)
-#   tests/hybrid-eval.ts   (HEAVY tier: BM25 ∪ dense -> cross-encoder rerank)
+# Golden set for local recall quality — consumed by tests/recall-eval.ts (hand-rolled TS BM25).
 # One case per line: "<query>|<expected-page-id>". expected id "NONE" = the query MUST abstain.
 # Queries are paraphrases a developer would actually type (NOT a decision's own words), so this
 # measures real recall, not echo.

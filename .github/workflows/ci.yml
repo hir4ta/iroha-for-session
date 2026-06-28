@@ -41,8 +41,8 @@ jobs:
       - name: Behavioral test (bun test — the oracle)
         run: bun test
 
-  # Recall quality: FREE-tier BM25 accuracy + scale; the rerank (HEAVY) eval SKIPs without the
-  # opt-in model (exit 0). node is pre-installed on the runner for the rerank probe's SKIP path.
+  # Recall quality: local BM25 accuracy + scale, both against the frozen fixture corpus
+  # (tests/fixtures/recall-corpus) so a workspace re-save never drifts them. No models, no network.
   eval:
     runs-on: ubuntu-latest
     steps:
@@ -51,12 +51,10 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - name: Recall quality eval (FREE tier BM25)
+      - name: Recall quality eval (local BM25)
         run: bun run test:recall
       - name: Recall scale check
         run: bun run test:scale
-      - name: Rerank precision eval (skips unless the opt-in model is installed)
-        run: bun run test:rerank
 
   # Supply-chain hygiene: secret + typo scans run THROUGH pre-commit so CI uses the EXACT same
   # pinned hooks / .gitignore / _typos.toml as a developer's local `pre-commit run` (CI == local).

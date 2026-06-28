@@ -28,9 +28,11 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
 - dev ツール = biome (TS/JSON lint+format) + `tsc --noEmit` (型) + `bun test` (振る舞いの正本) +
   typos + gitleaks (pre-commit)。
 - 知性 (要約・決定抽出・Type 分類) は `/save-session` スキル内で **Claude 本体**が担う。
-- recall は 2 tier: FREE = 自前 BM25 (`scripts/_lib/search.ts`・無依存・既定)、HEAVY = opt-in の
-  dense + cross-encoder rerank (`scripts/embed.ts` / `scripts/rerank.ts`, transformers.js を Bun で
-  in-process 実行＝node subprocess なし)。
+- recall は 2 段だが**ローカルにモデルを持たない**: ①常時の安価な前段 = 自前 BM25
+  (`scripts/_lib/search.ts`・無依存・オフライン・毎プロンプト hook)、②深い semantic 後段 =
+  `/iroha:recall` が **Notion 自身の意味検索 (`notion-search`・無料プラン)** で言い換えを拾う。
+  ローカル dense / cross-encoder rerank は撤去した (小コーパスで BM25 ≈ dense・cross-encoder は
+  terse 日本語で不安定・install が重い・深い semantic は notion-search が無料で担う＝過剰実装だった)。
 
 ## 言語境界
 
@@ -48,8 +50,8 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
 ## ローカル検証
 
 - `bun test` (振る舞いの正本) / `bun run lint` (biome) / `bunx tsc --noEmit` (型)。
-- 品質 eval: `bun tests/recall-eval.ts` (FREE) / `bun tests/recall-scale.ts` / モデルあれば
-  `IROHA_MODEL_DIR=~/.iroha/models bun tests/hybrid-eval.ts` (HEAVY) / `bun tests/rerank-eval.ts`。
+- 品質 eval: `bun tests/recall-eval.ts` (BM25 recall) / `bun tests/recall-scale.ts` (スケール)。
+  いずれも凍結 fixture コーパス (`tests/fixtures/recall-corpus`) に対して回すので再 save で揺れない。
 - `pre-commit install && pre-commit install --hook-type pre-push`。
 
 ## Notion MCP (dogfood / 配布)
@@ -74,6 +76,7 @@ SSE エンドポイントはレガシーなので使わない。
 - relation プロパティ (MCP の relation 書き込みに既知バグ → URL 連結で回避)。
 - SessionEnd 自動保存のための headless claude (複雑化・"閉じ込めない"思想と緊張 → ロードマップ。当面は SessionStart リマインドで担保)。
 - 毎プロンプト headless `claude -p` での recall (撤廃済: SOTA に無い反パターン＝コスト/遅延/レート競合・誤発火。ローカル BM25 へ置換)。
+- **ローカル dense embed / cross-encoder rerank の recall tier** (撤去済: 小コーパスで BM25 ≈ dense・cross-encoder は terse 日本語で ~0 のバイモーダルで効果薄・transformers.js＋数百MB モデルで install が重い・深い semantic は `/iroha:recall` の `notion-search` が無料で担う＝過剰実装。前段は無依存 BM25、後段は notion-search で十分)。
 - Stop ブロックによる保存強制 (ユーザーを閉じ込める)。保存 hook は "リマインド" まで。recall はローカルで proactive (LLM 呼ばないので毎プロンプトでも安価)。
 - **save をサブエージェント / 独自 MCP サーバに分散** (知性は現セッション文脈依存で転送劣化・書込は既に各1コール・no-token / intelligence-in-Claude の不変違反。正解は `extract.ts all` 集約 / Decision の `pages[]` 一括 / 独立書込の並列 tool_use)。
 - **Sessions/Decisions を年/月のページ階層にネスト** (DB の filter/sort/search/recall を失い、スケールでかえって見にくくなる。階層ブラウズは日付グルーピング view で代替)。
