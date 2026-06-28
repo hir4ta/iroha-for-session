@@ -637,6 +637,16 @@ test("session-lint (escapes, missing/reordered sections, header, optional sectio
   );
   expect(bun([SESSIONLINT, escapeMd]).code).toBe(1);
   expect(bun([SESSIONLINT, escapeMd]).out).toContain("escape sequence");
+  // a real \n / \t written INSIDE an inline `code` span is not a leak (code-span exclusion,
+  // matching link-lint) — e.g. a decision discussing the escape itself
+  const codespan = join(dir, "codespan.md");
+  writeFileSync(
+    codespan,
+    goodLines
+      .map((l) => (l === "diagram" ? "本文は `\\n` でなく実改行を使う" : l))
+      .join("\n"),
+  );
+  expect(bun([SESSIONLINT, codespan]).code).toBe(0);
   // no header content before the first heading
   const noheader = join(dir, "noheader.md");
   writeFileSync(noheader, goodLines.slice(1).join("\n"));

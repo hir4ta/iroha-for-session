@@ -15,8 +15,10 @@
 // skeleton, NOT semantics: it cannot catch a fabricated Highlight (that is the LLM's job, anchored
 // to the deterministic prompts/chat extracts) — exactly the boundary state-lint also stops at.
 //   1. non-empty file.
-//   2. no literal "\n" / "\t" two-character escape sequence — the body must contain REAL
-//      newlines/tabs (the same leak state-lint guards).
+//   2. no literal "\n" / "\t" two-character escape sequence OUTSIDE code — the body must contain
+//      REAL newlines/tabs (the same leak state-lint guards). Fenced blocks and inline `code` spans
+//      are excluded first (as link-lint does), so a legitimate \n / \t written inside `code` (e.g. a
+//      decision discussing the escape leak itself) is not a false positive.
 //   3. every REQUIRED "## " section present: Metrics, Decisions, Progress, Highlights, Details.
 //   4. the required sections appear in canonical order (optional sections may sit between them).
 //   5. header content before the first "## " heading (the one-line summary callout).
@@ -33,6 +35,23 @@ const REQUIRED_SECTIONS = [
   "Details",
 ];
 
+// Drop fenced code blocks and strip inline `code` spans (matching link-lint), so the \n / \t leak
+// check only sees rendered prose. Used solely for that check — section/order/header checks still run
+// on the full body (a heading never lives inside a code span).
+function stripCode(md: string): string {
+  let inFence = false;
+  const out: string[] = [];
+  for (const raw of md.split("\n")) {
+    if (/^[ \t]*```/.test(raw)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    out.push(raw.replace(/`[^`]*`/g, ""));
+  }
+  return out.join("\n");
+}
+
 // sessionLint(file) -> issue strings (empty list = clean).
 export function sessionLint(file: string): string[] {
   const issues: string[] = [];
@@ -41,7 +60,10 @@ export function sessionLint(file: string): string[] {
   }
   const body = readFileSync(file, "utf8");
   // Literal backslash-n / backslash-t (the two-character escape leak), not real newlines/tabs.
-  if (body.includes("\\n") || body.includes("\\t")) {
+  // Scan with fenced blocks and inline `code` spans stripped (link-lint's exclusion) so a real \n /
+  // \t inside `code` does not false-positive — only a leak in rendered prose is flagged.
+  const prose = stripCode(body);
+  if (prose.includes("\\n") || prose.includes("\\t")) {
     issues.push(
       "session-lint: literal \\n or \\t escape sequence found — body must contain real newlines/tabs",
     );
