@@ -5,13 +5,13 @@
 # Queries are paraphrases a developer would actually type (NOT a decision's own words), so this
 # measures real recall, not echo. IDs are this repo's real Decision/Session pages.
 #
-# RE-BASED 2026-06-27 (2nd time): the workspace was wiped and re-init'd again, so the prior ids no
-# longer exist. These ids are the fresh index's three Decision rows (ランタイム / 検索lib / 構造検証).
+# RE-BASED 2026-06-28 (3rd time): the workspace was re-saved into a new container, so the prior ids
+# no longer exist. These ids are the current index's three Decision rows (HEAVY実行 / 依存方針 / 保存).
 # Re-label again whenever the index changes materially (a reset, or after it grows enough that
 # better paraphrases exist). Lines starting with '#' and blank lines are ignored by the eval loops.
-bashをやめてBunに移行した判断|38c822c6-938a-81fc-837a-c131eb9dda2d
-検索を外部ライブラリに頼らず自前のBM25で維持する|38c822c6-938a-815a-bfbc-f4c5c57c3151
-セクションの構造崩れをpublish前にゲートで検出する|38c822c6-938a-8155-b998-f6c74144392f
+リランカーのモデルをnode spawnせずBun本体のin-processで動かす|38c822c6-938a-8178-9e2e-d6b2a9bf583d
+新しい依存を足さずZodも入れず依存ゼロを維持する方針|38c822c6-938a-8157-81fb-ed6b98e64afe
+Notion保存でAPIトークンを使わず本文を決定論で生成する|38d822c6-938a-81ac-be6a-cd2cf49944ab
 configure nginx reverse proxy with tls termination|NONE
 optimize the react component re-rendering performance|NONE
 terraform provider configuration for gcp networking|NONE
