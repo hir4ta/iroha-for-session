@@ -56,13 +56,19 @@ echo "$TX"   # empty -> transcript not found; tell the user and stop
 
 ```bash
 E="${CLAUDE_PLUGIN_ROOT}/scripts/extract.ts"
+# Stable per-session work dir, derived from the session id — NOT mktemp. The Bash tool does not
+# persist shell vars across separate calls, so every later step (§4 intel, §5 render, §5b chat)
+# recomputes this SAME path instead of threading $OUT through. ${CLAUDE_SESSION_ID} is substituted
+# by the skill engine (the bare $CLAUDE_SESSION_ID is not a Bash env var — see §2).
+OUT="${TMPDIR:-/tmp}/iroha-save-${CLAUDE_SESSION_ID}"; mkdir -p "$OUT"; echo "$OUT"
 # ONE call parses the (large) transcript once and returns every view as a JSON object:
 #   .meta  {title, started, ended, cwd, gitBranch, model, sessionId}
 #   .stats {userTurns, assistantTurns, toolCalls, filesEdited, bashCommands, durationMin, …}
 #   .files / .commands / .prompts / .tools / .chat  — arrays of pre-formatted lines
 #     (.prompts = the human's real messages = the You-side anchor for step 7;
 #      .chat = cleaned full chat, per-turn capped, for the Full-chat child page in step 5b)
-bun "$E" all "$TX"
+# tee to $OUT/extract.json so compose-session.ts (§5) reads .stats/.files/.commands/.tools from it.
+bun "$E" all "$TX" | tee "$OUT/extract.json"
 git config user.name 2>/dev/null || echo "unknown"   # Author
 ```
 
@@ -70,31 +76,47 @@ git config user.name 2>/dev/null || echo "unknown"   # Author
 from your memory of the session, but the **You** side is anchored to the deterministic
 `prompts` output above — never invented.)
 
-## 4. Compose the content (from your memory of the session + the extracted data)
+## 4. Compose the intelligence as JSON (you produce this; the renderer builds the structure)
 
-- **Summary** — 1-3 sentences (the `Summary` property + search snippet).
-- **Decisions** — each: the decision, *why*, and *rejected alternatives*. A decision
-  to NOT do something counts.
-- **Rules changed** — only rules/conventions **newly established or changed this
-  session** (CLAUDE.md / memory promotion candidates). Do **not** re-list unchanged
-  project rules — those live in CLAUDE.md / the Decisions DB, not in every session.
-- **Done** / **Unfinished / Next** — work-state, for the Project State carry-over.
-- **Failures** — error -> root cause -> fix.
-- **Highlights** — 5-8 pivotal You<->Claude exchanges, paraphrased, to render
-  chat-style (NOT the full transcript).
+You produce only the **content** (the intelligence); `compose-session.ts` (§5) produces the
+**structure** (sections, callouts, tables, toggles, backticking, lints). Write your intelligence to
+`"$OUT/intel.json"` (use the Write tool, with the `$OUT` printed in §3). Compose it from your memory
+of the session + the extracted data. **Omit** an optional array/object when it does not apply. The
+prose values are in the **user's conversation language** (the renderer keeps only the scaffolding
+English):
+
+```json
+{
+  "summary": "1-2 sentences — the header callout (also the Summary property + search snippet)",
+  "architecture": { "caption": "one line: what the diagram shows and why it is here", "mermaid": "graph TD\n  …" },
+  "decisions": [ { "decision": "…", "why": "the rationale", "rejected": "rejected alternatives — a decision to NOT do something counts" } ],
+  "done": ["work actually completed this session"],
+  "unfinished": ["open items to carry into Project State"],
+  "rulesChanged": ["only rules/conventions NEWLY established or changed THIS session (CLAUDE.md / memory candidates); omit unchanged project rules"],
+  "failures": [ { "symptom": "phrased in the words a future search would use", "cause": "root cause", "fix": "the fix" } ],
+  "highlights": [ { "who": "You", "text": "the human's REAL words (anchored to .prompts — never invented)" }, { "who": "Claude", "text": "your reply, paraphrased; do not inflate success" } ]
+}
+```
+
+- `architecture` — include only when the work has real structure worth a diagram (caption first, so
+  a reader never asks "a diagram of what?"). Omit otherwise. Use `<br>` (not `\n`) inside mermaid
+  node labels; wrap labels with special chars in double quotes.
+- `highlights` — 5-8 pivotal exchanges; the **You** side is anchored to the deterministic `.prompts`
+  (step 7), Claude lines paraphrased. This is the curated subset — the full chat is the child page (§5b).
+- `decisions` here is the session-level table (broader); the canonical Decisions DB rows (only
+  architecture/dependency/process choices) are created separately in §6.
+
+Separately decide the two page **PROPERTIES** (not body, so not in `intel.json`):
 - **Type** — any of Research / Requirements / Design / Implementation / Fix / Refactor / Review
-  (infer from the transcript). These English names are the **canonical template**; write the
-  value in the user's conversation language to match the options init seeded for this
-  workspace (a Japanese workspace stores the Japanese equivalents).
+  (infer from the transcript). These English names are the **canonical template**; write the value in
+  the user's language to match the options init seeded (a Japanese workspace stores the Japanese ones).
 - **Status** — `$ARGUMENTS` if given, else infer Complete / WIP / Interrupted.
 
-**Honesty (applies to every field, not only Highlights).** Report what *actually*
-happened — keep dead-ends, corrections, and abandoned approaches at the same weight as the
-wins. Do **not** inflate success in the Summary, Progress, or Decisions; an over-rosy memory
-misleads the next session as surely as a wrong one. Any metric you state (tests passed,
-commits, files) must come from `extract.ts stats` or a real command's output — never
-estimated or rounded up. If you are unsure something happened, leave it out rather than
-assert it.
+**Honesty (applies to every field).** Report what *actually* happened — keep dead-ends, corrections,
+and abandoned approaches at the same weight as the wins. Do **not** inflate success in `summary`,
+`done`, or `decisions`; an over-rosy memory misleads the next session as surely as a wrong one. Every
+metric is computed by the renderer from `.stats` — never hand-state one. If you are unsure something
+happened, leave it out rather than assert it.
 
 ## 5. Create the Session row
 
@@ -134,78 +156,28 @@ Property map uses SQLite values:
 - Date — expanded keys: `"date:Date:start"` = started ISO, `"date:Date:is_datetime"` = `1`
   **as a JSON number, not the string `"1"`** (a string is rejected with a 400).
 
-**`content` = Notion-flavored Markdown, visual and monochrome (no emoji icons).**
-Keep the **section headings in English canonical** (`## Metrics`, `## Decisions`, … — they
-are structural, like property names, and `audit` / `state-lint` enumerate them by name);
-render the **body prose** (summary, table cells, callout text, toggle labels) in the user's
-conversation language. Read the spec once via `notion://docs/enhanced-markdown-spec`.
-Emit **exactly these sections, in this order, on every save** — the structure must be
-identical each time. The **only** optional sections are **Architecture**, **Rules
-changed**, and **Failures** (include them only when they apply); never add, drop,
-rename, or reorder anything else (the section headings below are English canonical — keep
-them verbatim; localize only the body prose). Do **not** add an Overview / meta table — the page properties already
-show Project / Status / Type / Date / Branch / Author at the top:
-1. a header `<callout color="blue_bg">` with the one-line summary;
-2. `## Metrics` — a `<callout color="gray_bg">` dashboard built **verbatim from `.stats`**
-   (step 3's `all` output — never hand-count). One readable line, ` · `-separated, with a clear
-   label on **every** number (no emoji — house rule) and **no cryptic `a↔b`** form. Use this
-   shape: `Duration <durationMin> min · <userTurns> prompts → <assistantTurns> Claude replies ·
-   <toolCalls> tool calls (<bashCommands> bash) · <filesEdited> files changed`, e.g.
-   `Duration 67 min · 3 prompts → 74 Claude replies · 144 tool calls (46 bash) · 20 files changed`.
-   Always included; one glance must tell the reader exactly what each number means;
-3. `## Architecture` *(optional — only when the work has real structure worth a diagram)*:
-   a **one-line caption first** saying *what the diagram shows and why it is here* (so a reader
-   never has to ask "a diagram of what?"), then a ```mermaid``` diagram. Omit the whole section
-   when there is nothing structural to show — never emit a diagram without its caption, and never
-   force one onto a session that did not build a structure;
-4. `## Decisions` as a `<table header-row="true">` with a `<tr color="blue_bg">` header
-   (columns: Decision / Why / Rejected alternatives);
-5. `## Progress` as a green_bg callout (Done) + an orange_bg callout (Unfinished, `- [ ]`);
-6. `## Highlights` — 5-8 pivotal exchanges as alternating chat-style callouts
-   (You = `blue_bg`, Claude = `gray_bg`), **wrapped in a `<details>` toggle so they are
-   collapsed by default and expand on click** (the section is long — keep the page
-   scannable). Give the `<summary>` the English canonical label `Highlights (N exchanges)`,
-   and **tab-indent the callouts inside the toggle**. The
-   **You** lines come from the `prompts` extract (real messages, never invented), Claude
-   lines are paraphrased — **not** the full chat (see step 7);
-7. `## Rules changed` *(optional — only when this session established or changed a rule)*
-   as a `<callout color="gray_bg">`; omit the whole section when no rule changed;
-8. `## Failures` *(optional — only when there were notable pitfalls)* as a
-   `<details><summary>…</summary>` toggle. Write each as **symptom → root cause → fix**
-   (Reflexion: a failure is first-class, recallable memory — phrase the symptom in the words
-   a future search would use, so the next session surfaces it *before* repeating the
-   dead-end). **For the proactive hook to actually surface it, the symptom must also reach the
-   session's search snippet in step 9 — text living only in this page body is found only by
-   explicit /iroha:recall.**
-9. `## Details` with `<details><summary>…</summary>` toggles, in this order:
-   **Changed files** (`.files`), **Commands** (`.commands`), **Tools** (`.tools` — the per-tool
-   tally), all from step 3's `all` output. Render the `files` / `commands` / `tools` arrays as
-   **bulleted lists** verbatim (they are already `- ` lines; never join entries with `·`).
-   **Do NOT add a "Full chat" toggle here.** The full chat is a child page (step 5b), and Notion
-   already lists that child page natively under the session — a toggle linking to it only makes
-   the same "Full chat" appear twice. The child page's own title carries the turn count, so it is
-   self-explanatory without a toggle.
-Wrap every file name / command / path in backticks — **including inside callouts and
-tables** — so Notion does not auto-linkify `.ts` / `.md` names as `http://…` URLs.
-Indent callout / toggle / table children with **tabs**. Keep the returned page URL.
+**`content` = the body rendered DETERMINISTICALLY by `compose-session.ts` — do NOT hand-format it.**
+The fixed section set + order (Metrics / Architecture? / Decisions / Progress / Highlights / Rules
+changed? / Failures? / Details), the monochrome callout/table/toggle structure, the real-newline/tab
+rule, and "backtick every file/path so Notion does not auto-linkify it" are all **encoded in the
+renderer**. Hand-building that in the prompt is exactly the fragility (and the link-lint / session-lint
+round-trips) this step removes. So pass your intel JSON (§4) + the extract (§3) to the renderer:
 
-**Lint for auto-linkify BEFORE publishing — deterministic gate, not eyeballing.** Backticking
-by hand recurs as a leak (it has turned `extract.ts` / `CLAUDE.md` in this very page into bogus
-`http://…` links). So before the `notion-create-pages`, write the composed `content` to a temp
-file and run `bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/link-lint.ts" <file>`; it lists every bare
-file / command / path token sitting outside a backtick span / code fence / `[text](url)` link.
-Wrap each flagged token in backticks and re-lint until it **exits 0** — never publish content
-link-lint flags. Apply the same gate to **every prose surface** you publish here: the Session
-`content`, the State mirror (step 8), decision page bodies (step 6), and any callout.
+```bash
+OUT="${TMPDIR:-/tmp}/iroha-save-${CLAUDE_SESSION_ID}"   # same path as §3 (recomputed, not threaded)
+C="${CLAUDE_PLUGIN_ROOT}/scripts/compose-session.ts"
+bun "$C" "$OUT/intel.json" "$OUT/extract.json" "$OUT/session-body.md"   # prints the path; exit 0 when clean
+```
 
-**Also lint the Session body's STRUCTURE before publishing — `session-lint.ts`.** link-lint guards
-auto-linkify; it does not check that the body has the canonical sections. Run
-`bun "${CLAUDE_PLUGIN_ROOT}/scripts/_lib/session-lint.ts" <file>` on the **same temp file** (the
-composed Session `content`); it fails if a required `## ` section (Metrics / Decisions / Progress /
-Highlights / Details) is missing or out of canonical order, or if a literal `\n` / `\t` escape
-leaked. Fix the body and re-lint until it **exits 0** — never publish a Session whose structure the
-lint flags. This is the Session-page analogue of `state-lint`; it guards **structure, not
-semantics** — the You-anchored, non-fabricated Highlights (step 7) remain your responsibility.
+The renderer keeps the section headings + structural labels (Decision / Why / Rejected alternatives,
+Done, Unfinished / Next, Changed files / Commands / Tools, `Highlights (N exchanges)`) **English
+canonical** and renders your JSON prose in the user's language; builds the `## Metrics` dashboard
+**verbatim from `.stats`** (never hand-counted); auto-backticks every bare file/path token; and
+**self-runs link-lint + session-lint** before returning. A **non-zero exit is a renderer bug to
+report** — not something to hand-fix or work around. Then read `"$OUT/session-body.md"` and pass its
+**verbatim bytes** as the `notion-create-pages` `content` (do not re-format, re-order, or re-emit it
+from memory). The page properties already show Project / Status / Type / Date / Branch / Author, so
+the body carries no meta table. Keep the returned page URL.
 
 Set a clean monochrome page icon:
 `icon: "https://www.notion.so/icons/notebook_gray.svg"`.
@@ -230,7 +202,7 @@ the chat **DETERMINISTICALLY** rather than by hand — hand-splitting a big chat
 Run `chat-chunks.ts`, which reuses the SAME cleaned `.chat` turns:
 
 ```bash
-OUT="$(mktemp -d)"
+OUT="${TMPDIR:-/tmp}/iroha-save-${CLAUDE_SESSION_ID}"   # same work dir as §3 (recomputed, not threaded)
 bun "${CLAUDE_PLUGIN_ROOT}/scripts/chat-chunks.ts" "$TX" "$OUT"
 # -> {"totalTurns":N,"chunkCount":K,"files":["$OUT/chat-chunk-00.md", …]}  (<=50 turns/file)
 ```
@@ -316,6 +288,7 @@ consolidation): the local BM25 search surfaces a decision that means the same th
   `content` = `Supersedes [<old topic>: <old choice>](<old-url>) — <one-line why it changed>`.
   This is the only thing in the decision body; the *why* still lives in `Rationale`. Without it
   the lineage is visible only via the `/iroha:history` CLI, never to someone reading Notion.
+  Backtick any file/path in the `<why>` (Notion auto-linkifies a bare `foo.ts` to `http://…`).
 - **Block granularity pollution at write time.** If the candidate is a display / naming /
   wording tweak rather than an architecture / dependency / process choice, do **not** create
   a Decisions row — keep it in the Session's Decisions table. This is the guard that keeps
@@ -347,20 +320,18 @@ token, not the title).
 
 ## 7. Chat highlights — curated, anchored to real messages
 
+The `highlights[]` array of your intel JSON (§4) is a **curated subset**, **anchored to the
+deterministic `prompts` output from step 3 — those are the human's actual words.** The renderer turns
+it into the alternating chat-style callouts; your job is *which* exchanges and *that they are true*.
 The full cleaned chat is **paged out to a child page** (step 5b), not re-dumped here.
-Build the `## Highlights` section as a curated subset, **anchored to the deterministic
-`prompts` output from step 3 — those are the human's actual words.**
 
-- **You callouts** — use the real messages from `prompts`, condensed but **never
-  invented**. Do not write a "You" line the human did not actually say, and do not turn
-  your own analysis into a question they "asked". Pick the 5-8 that drove the key
-  decisions.
-- **Claude callouts** — paraphrase your replies concisely, and report what *actually*
-  happened: **do not inflate success.** Keep the dead-ends, the corrections, and the
-  things you decided NOT to do at the same weight as the wins — a highlight reel that
-  shows only the clean path is a misleading memory.
-- Render as alternating chat-style callouts (You = `blue_bg`, Claude = `gray_bg`); do
-  **not** dump the whole transcript or flatten it into prose.
+- **You entries** (`"who": "You"`) — use the real messages from `prompts`, condensed but **never
+  invented**. Do not write a "You" line the human did not actually say, and do not turn your own
+  analysis into a question they "asked". Pick the 5-8 that drove the key decisions.
+- **Claude entries** (`"who": "Claude"`) — paraphrase your replies concisely, and report what
+  *actually* happened: **do not inflate success.** Keep the dead-ends, the corrections, and the
+  things you decided NOT to do at the same weight as the wins — a highlight reel that shows only the
+  clean path is a misleading memory.
 
 ## 8. Update the Project State page (continuity core)
 
