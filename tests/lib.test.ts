@@ -88,6 +88,29 @@ test("extract meta — title fallback skips noise wrappers, uses first REAL prom
   expect(meta.title).toBe("ログイン機能を追加して");
   expect(meta.title).not.toContain("command-name");
 });
+test("extract — empty transcript yields empty/zeroed views, never fatal", () => {
+  // A 0-byte transcript (e.g. a session that crashed before its first write) must not throw: every
+  // list view is empty, every json view is well-formed and zeroed, and the exit code stays 0.
+  const dir = mktmp();
+  const empty = join(dir, "empty.jsonl");
+  writeFileSync(empty, "");
+  for (const view of ["files", "commands", "prompts", "tools", "chat"]) {
+    const r = bun([EXTRACT, view, empty]);
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("");
+  }
+  const meta = JSON.parse(bun([EXTRACT, "meta", empty]).out);
+  expect(meta.title).toBe("Untitled session");
+  expect(meta.started).toBeNull();
+  const stats = JSON.parse(bun([EXTRACT, "stats", empty]).out);
+  expect(stats.userTurns).toBe(0);
+  expect(stats.toolCalls).toBe(0);
+  expect(stats.durationMin).toBe(0);
+  const all = JSON.parse(bun([EXTRACT, "all", empty]).out);
+  expect(all.files).toEqual([]);
+  expect(all.commands).toEqual([]);
+  expect(all.chat).toEqual([]);
+});
 test("extract redacts common secrets from chat / prompts / commands (Notion leak guard)", () => {
   const dir = mktmp();
   const tx = join(dir, "sec.jsonl");

@@ -1,7 +1,7 @@
 // Behavioral oracle (Bun test) for the hooks + local recall orchestration. Ported
 // 1:1 from the former tests/selftest.sh. Hooks are exercised as real subprocesses (stdin -> hook
 // JSON on stdout), matching how Claude Code invokes them.
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -51,6 +51,13 @@ beforeAll(() => {
   cfgSet(RIDATA3, "decisions_ds_id", "DSID");
   mkdirSync(join(RIPROJ, ".iroha"), { recursive: true });
   writeFileSync(join(RIPROJ, ".iroha", "index.ndjson"), `${DECISION_ROW}\n`);
+});
+// Reset the per-prompt cache dir before EVERY test so tests are independent: a reused session id
+// can no longer leak a cache hit from a prior test (independence used to rely on unique-sid naming,
+// a convention the parser did not enforce). The read-only fixtures (RIDATA*/RIPROJ) stay in beforeAll.
+beforeEach(() => {
+  rmSync(RICACHE, { recursive: true, force: true });
+  mkdirSync(RICACHE, { recursive: true });
 });
 afterAll(() => {
   for (const d of [RIDATA, RIDATA3, RIDATA2, RIPROJ, RICACHE])
@@ -122,6 +129,8 @@ test("session-start hook (state injection + save backlog + compaction + silence)
   expect(out).not.toContain("TRIVIAL-QA");
   expect(out).toContain("Open items carried over");
   expect(out).toContain("hookSpecificOutput");
+  // The emitted line must be parseable JSON carrying the right event name (not just substrings).
+  expect(JSON.parse(out).hookSpecificOutput.hookEventName).toBe("SessionStart");
 
   mkdirSync(join(data, "saved"), { recursive: true });
   writeFileSync(join(data, "saved", "old"), "");
@@ -277,4 +286,29 @@ test("check-inject — gates, consent, cache, abstain, inject", () => {
   expect(ci('git commit -m "relationで連結"', "cci5", {}, RIDATA3).out).toBe(
     "",
   ); // consent gate
+});
+test("check-inject — multi-line commit message still extracts the subject and fires", () => {
+  // A real `-m` body can carry newlines; the subject capture ([^"]*) spans them, so the governing
+  // decision must still be found (the body does not break extraction or suppress the advisory).
+  const cp = ci(
+    'git commit -m "relationで連結する設計を変更\n\n本文: 詳細な理由をここに複数行で書く"',
+    "cciMulti",
+  );
+  expect(cp.out).toContain("連結: relation でなく URL");
+  expect(cp.out).toContain("hookSpecificOutput");
+});
+
+// ── hook output is well-formed JSON (not just substring-correct) ─────────────────────────────────
+test("recall-inject / check-inject emit parseable JSON with the right hookEventName", () => {
+  const rj = JSON.parse(
+    ri("relationプロパティで連結すべきか検討したい", "sidJSON").out,
+  );
+  expect(rj.hookSpecificOutput.hookEventName).toBe("UserPromptSubmit");
+  expect(typeof rj.hookSpecificOutput.additionalContext).toBe("string");
+
+  const cj = JSON.parse(
+    ci('git commit -m "relationで連結する設計を変更"', "ciJSON").out,
+  );
+  expect(cj.hookSpecificOutput.hookEventName).toBe("PreToolUse");
+  expect(typeof cj.hookSpecificOutput.additionalContext).toBe("string");
 });
