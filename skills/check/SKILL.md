@@ -2,6 +2,7 @@
 name: check
 description: Check the current working changes against this project's past Active decisions and flag conflicts — "this diff looks like it contradicts the decision we made (and why)". Bridges git reality (uncommitted changes + recent commits) with the Decisions DB so you catch a silent course-reversal before you commit or open a PR. Read-only. Triggers on "/iroha:check", "does this change violate a past decision?", "check my changes against decisions", and naturally before committing/pushing a non-trivial change.
 argument-hint: ""
+allowed-tools: Bash, Read, mcp__notion__notion-fetch
 ---
 
 # iroha: check

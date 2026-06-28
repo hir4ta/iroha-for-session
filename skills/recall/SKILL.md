@@ -2,6 +2,7 @@
 name: recall
 description: Search this project's iroha memory — past decisions ("did we decide against X? why?") and similar past work ("have we built something like this before?"). Uses Notion's own search (notion-search) over the Sessions and Decisions databases; on a free Notion workspace it is scoped to your own pages, which is all this needs. Triggers on "/iroha:recall", and naturally when the user asks "did we decide X?", "why did we choose X?", or "have we built something like this before?".
 argument-hint: "[query]"
+allowed-tools: Bash, mcp__notion__notion-search, mcp__notion__notion-fetch
 context: fork
 ---
 

@@ -2,6 +2,7 @@
 name: history
 description: Walk the supersede LINEAGE of a topic — how and why a decision evolved over time, "X was superseded by Y was superseded by Z (and here is the reason at each step)". Where recall answers "what did we decide?" with the current Active choice, history shows the whole chain behind it, so a course-reversal is visible as a story, not a single flat row. Read-only. Triggers on "/iroha:history <topic>", "how did our decision on X evolve?", "why did we change our mind about X?", "show the history of the X decision".
 argument-hint: "[topic or question]"
+allowed-tools: Bash, mcp__notion__notion-fetch, AskUserQuestion
 ---
 
 # iroha: history
