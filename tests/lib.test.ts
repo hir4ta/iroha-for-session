@@ -456,6 +456,45 @@ test("index (upsert by id, find-topic, list, supersede chain)", () => {
   expect(topicX.find((r) => r.id === "chA").supersedes ?? "null").toBe("null");
 });
 
+// Regression: a real Notion lineage stores DASHED record ids but save-session's "<bare-old-id>"
+// guidance writes a BARE `supersedes`. A raw === comparison then dead-ends the chain and integrity
+// falsely reports "broken lineage" (a dogfood defect). Both must normalize the dashes and link.
+test("index/integrity — lineage links a bare supersedes to a dashed record id", () => {
+  const root = mktmp();
+  const up = (...a: string[]) => bun([INDEX, "upsert", root, ...a]);
+  up(
+    "decision",
+    "38c822c6-938a-8178-9e2e-d6b2a9bf583d", // predecessor: DASHED (as Notion returns / index stores)
+    "リコール",
+    "Superseded",
+    "2026-06-27",
+    "リコール: 旧",
+    "demo",
+    "old",
+  );
+  up(
+    "decision",
+    "38d822c6-938a-812f-8361-d1cf7eaf83f6",
+    "リコール",
+    "Active",
+    "2026-06-28",
+    "リコール: 新",
+    "demo",
+    "new",
+    "38c822c6938a81789e2ed6b2a9bf583d", // supersedes the predecessor by its BARE 32-hex form
+  );
+  // chain walks both despite the dashed/bare mismatch
+  expect(
+    lines(
+      bun([INDEX, "chain", root, "38d822c6-938a-812f-8361-d1cf7eaf83f6"]).out,
+    )
+      .map((l) => JSON.parse(l).title)
+      .join(","),
+  ).toBe("リコール: 新,リコール: 旧");
+  // integrity must NOT flag it as broken lineage (no state.md -> the State check is skipped)
+  expect(bun([INTEG, root]).code).toBe(0);
+});
+
 // ── index: typed query subcommands (has / active / dup-topics / in-range) ─────────────────────────
 test("index has/active/dup-topics/in-range (typed replacements for shell jq/grep)", () => {
   const root = mktmp();

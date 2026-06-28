@@ -104,7 +104,8 @@ Properties (SQLite values):
 
 The 9th arg is the BM25 **search snippet** — the `Rationale` condensed to ≤160 chars, newlines
 collapsed to spaces, ending on a word boundary (never mid-token, so the trailing CJK bigram stays
-intact). The 10th arg is the bare id of the decision this one supersedes (empty for an original):
+intact). The 10th arg is the id of the decision this one supersedes (empty for an original) — the
+dashed page id or the bare 32-hex form both work, the index normalizes dashes before matching:
 
 ```bash
 bun "$IDX" upsert "$ROOT" decision "<new_page_id>" "<topic>" Active "$(date +%F)" "<Name>" "$(basename "$PWD")" "<rationale snippet ≤160>" "<old_page_id-if-superseding-else-empty>"

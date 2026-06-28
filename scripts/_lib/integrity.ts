@@ -17,7 +17,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { stateMdPath } from "./config.ts";
-import { indexPath } from "./index.ts";
+import { bareId, indexPath } from "./index.ts";
 
 // integrity(root) -> issue strings (empty list = clean).
 export function integrity(root: string): string[] {
@@ -126,8 +126,13 @@ export function integrity(root: string): string[] {
   }
 
   // 5. Supersede lineage — every `supersedes` must point to an id that exists in the index.
+  //    Normalize BOTH sides to bare (strip dashes): the index stores dashed UUIDs but a `supersedes`
+  //    may be written bare (save-session's "<bare-old-id>" guidance), and a raw === would then falsely
+  //    flag a real lineage as broken. Report the original supersedes string so the message is legible.
   const allIds = new Set(
-    records.filter((r) => typeof r.id === "string").map((r) => r.id as string),
+    records
+      .filter((r) => typeof r.id === "string")
+      .map((r) => bareId(r.id as string)),
   );
   const danglingSup = [
     ...new Set(
@@ -141,7 +146,7 @@ export function integrity(root: string): string[] {
         .map((r) => r.supersedes as string),
     ),
   ]
-    .filter((id) => !allIds.has(id))
+    .filter((id) => !allIds.has(bareId(id)))
     .sort();
   if (danglingSup.length > 0) {
     issues.push(

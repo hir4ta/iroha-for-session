@@ -301,8 +301,10 @@ condensation of the decision's `Rationale` (≤160 chars, newlines collapsed to 
 stays intact):
 
 ```bash
-# after creating a Decision (capture its page id from notion-create-pages). The 10th arg is the
-# bare id of the decision this one SUPERSEDES (empty for an original) — the lineage /iroha:history walks:
+# after creating a Decision (capture its page id from notion-create-pages). The 10th arg is the id
+# of the decision this one SUPERSEDES (empty for an original) — the lineage /iroha:history walks.
+# Either the dashed page id (as notion-create-pages returns it) or the bare 32-hex form works: the
+# index normalizes the dashes before matching, so the lineage links regardless of which you paste:
 bun "$IDX" upsert "$ROOT" decision "<decision_page_id>" "<topic>" Active "<YYYY-MM-DD>" "<Name>" "<Project>" "<rationale snippet ≤160 chars>" "<old_page_id-if-superseding-else-empty>"
 # after superseding an old one (keep its snippet so it stays searchable as history):
 bun "$IDX" upsert "$ROOT" decision "<old_page_id>" "<topic>" Superseded "<old_date>" "<old_Name>" "<Project>" "<old rationale snippet>"

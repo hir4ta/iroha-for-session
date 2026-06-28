@@ -14,9 +14,11 @@
 //   id      the Notion page id (the upsert key)
 //   topic   for decisions, the "<topic>" prefix of "<topic>: <choice>" (the dedup key)
 //   status  "Active" | "Superseded" (decisions) / "Complete" | "WIP" | "Interrupted" (sessions)
-//   supersedes  for decisions, the bare id of the immediate predecessor this decision REPLACED
-//           (empty -> the key is omitted). This makes the supersede LINEAGE walkable offline:
-//           /iroha:history starts at the current Active decision and follows `supersedes` back.
+//   supersedes  for decisions, the id of the immediate predecessor this decision REPLACED —
+//           either the DASHED UUID (as the index stores ids) or the BARE 32-hex form (what
+//           save-session's "<bare-old-id>" guidance produces); lineage comparisons normalize the
+//           dashes, so both link. Empty -> the key is omitted. This makes the supersede LINEAGE
+//           walkable offline: /iroha:history starts at the current Active decision and follows back.
 //   text    a short SEARCH SNIPPET (decision rationale / session summary, ~160 chars) — the
 //           lexical-recall key for search.ts. DERIVED (regenerated each save), NOT canonical.
 
@@ -111,6 +113,16 @@ function asciiDowncase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => c.toLowerCase());
 }
 
+// Page ids appear DASHED (UUID — how Notion's API returns them and how the index stores them) or
+// BARE (32-hex — what save-session's "<bare-old-id>" supersede guidance produces). Normalize to the
+// bare form before comparing an id against a `supersedes` value, so the lineage links regardless of
+// which form was written (the same normalization integrity.ts's State-link check already applies).
+// Without it, a bare `supersedes` never matches a dashed record id and the chain/lineage silently
+// dead-ends — a real dogfood defect.
+export function bareId(s: string): string {
+  return s.replace(/-/g, "");
+}
+
 // Matching decision lines for a topic (any status). The dedup/supersede key is the topic;
 // case-insensitive on ASCII.
 export function indexFindTopic(
@@ -131,13 +143,15 @@ export function indexChain(
 ): Record<string, unknown>[] {
   const recs = indexRead(root);
   const out: Record<string, unknown>[] = [];
-  let cur = id;
+  let cur = bareId(id);
   let n = 0;
   while (cur !== "" && n < 50) {
-    const rec = recs.find((r) => r.type === "decision" && r.id === cur);
+    const rec = recs.find(
+      (r) => r.type === "decision" && bareId(String(r.id ?? "")) === cur,
+    );
     if (!rec) break;
     out.push(rec);
-    cur = typeof rec.supersedes === "string" ? rec.supersedes : "";
+    cur = typeof rec.supersedes === "string" ? bareId(rec.supersedes) : "";
     n += 1;
   }
   return out;
