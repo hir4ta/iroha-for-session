@@ -1,0 +1,12 @@
+# Dependabot — keep the SHA-pinned GitHub Actions fresh.
+# Actions are pinned to full commit SHAs (immutable, per GitHub's security guidance);
+# this opens a weekly PR to bump each pin and update its `# vX.Y.Z` comment.
+# The npm ecosystem is intentionally NOT enabled: Dependabot cannot read bun.lock,
+# so it would bump package.json without updating the lockfile. The 4 devDeps are
+# refreshed manually with `bun update`.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
