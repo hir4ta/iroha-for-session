@@ -57,7 +57,7 @@ an individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-[https://github.com/hir4ta](https://github.com/hir4ta). All complaints will be
+[https://github.com/iroh4-labs](https://github.com/iroh4-labs). All complaints will be
 reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

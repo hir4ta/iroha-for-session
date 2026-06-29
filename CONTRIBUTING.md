@@ -6,7 +6,7 @@ Thanks for your interest in iroha-for-memory. It's a small Claude Code plugin
 ## Dev setup
 
 ```bash
-git clone https://github.com/hir4ta/iroha-for-memory
+git clone https://github.com/iroh4-labs/iroha-for-memory
 cd iroha-for-memory
 bun install                                   # dev tools: biome, typescript, fast-check
 pre-commit install && pre-commit install --hook-type pre-push

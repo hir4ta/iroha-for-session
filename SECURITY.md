@@ -27,7 +27,7 @@ human review of `.iroha/` diffs is the real safeguard.
 ## Reporting a vulnerability
 
 Please report security issues privately via GitHub's
-**[Security Advisories](https://github.com/hir4ta/iroha-for-memory/security/advisories/new)**
+**[Security Advisories](https://github.com/iroh4-labs/iroha-for-memory/security/advisories/new)**
 rather than a public issue. We'll acknowledge and respond as quickly as we can.
 
 ## Supported versions

@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security report
-    url: https://github.com/hir4ta/iroha-for-memory/security/advisories/new
+    url: https://github.com/iroh4-labs/iroha-for-memory/security/advisories/new
     about: Please report security issues privately, not as a public issue.
