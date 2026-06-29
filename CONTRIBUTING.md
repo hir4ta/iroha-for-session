@@ -1,13 +1,13 @@
 # Contributing
 
-Thanks for your interest in iroha-for-session. It's a small Claude Code plugin
+Thanks for your interest in iroha-for-memory. It's a small Claude Code plugin
 (Bun + TypeScript) — easy to run locally.
 
 ## Dev setup
 
 ```bash
-git clone https://github.com/hir4ta/iroha-for-session
-cd iroha-for-session
+git clone https://github.com/hir4ta/iroha-for-memory
+cd iroha-for-memory
 bun install                                   # dev tools: biome, typescript, fast-check
 pre-commit install && pre-commit install --hook-type pre-push
 ```

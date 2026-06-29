@@ -1,5 +1,5 @@
 {
-  "name": "iroha-for-session",
+  "name": "iroha-for-memory",
   "version": "0.4.2",
   "private": true,
   "type": "module",

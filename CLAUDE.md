@@ -1,4 +1,4 @@
-# iroha-for-session
+# iroha-for-memory
 
 Claude Code のセッションを Notion に保存し、人間も将来のセッションも参照できる
 「生きたプロジェクト記憶」にする Claude Code プラグイン。いずれ世界配布する。
@@ -15,7 +15,7 @@ Claude Code のセッションを Notion に保存し、人間も将来のセッ
 - **決定の瞬間に台帳へ 1 行追記** (`/iroha:decide`) ＝重い save を待たず記憶が育つ (capture の軽量半分)
 
 詳細な合意設計は会話履歴および
-`~/.claude/projects/-Users-shunichi-Projects-iroha-for-session/memory/project-goal-and-architecture.md` 参照。
+`~/.claude/projects/-Users-shunichi-Projects-iroha-for-memory/memory/project-goal-and-architecture.md` 参照。
 
 ## スタック
 

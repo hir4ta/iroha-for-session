@@ -1,4 +1,4 @@
-// iroha-for-session — UserPromptSubmit hook: proactive LOCAL recall (cheap, offline, no LLM).
+// iroha-for-memory — UserPromptSubmit hook: proactive LOCAL recall (cheap, offline, no LLM).
 //
 // North star: Claude consults relevant past decisions BEFORE building, every time — without the
 // user running /iroha:recall. It does the cheap thing: a local BM25 lexical search over the

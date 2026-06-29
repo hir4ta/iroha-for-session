@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "iroha-for-session",
+      "name": "iroha-for-memory",
       "devDependencies": {
         "@biomejs/biome": "2.5.1",
         "@types/bun": "1.3.14",

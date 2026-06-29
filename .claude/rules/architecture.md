@@ -58,7 +58,7 @@
   dedup 規律・index 形式は同一 (二経路で別物を作らない)。
 - **リコールは2段だがローカルにモデルを持たない**。①常時の**安価ローカル前段**=
   `scripts/_lib/recall.ts :: recallLocal` = `search.ts` の自前 **BM25**(TS・CJK 2-gram トークナイズ・
-  status/type 重み・英語機能語ストップワード除去=recall 中立で romaji 識別子 `iroha-for-session` 由来の
+  status/type 重み・英語機能語ストップワード除去=recall 中立で romaji 識別子 `iroha-for-memory` 由来の
   "for" 等が cross-domain 偽一致するのを根治)。LLM もネットワークもモデルも要らず即時・オフライン・**無依存**で、
   UserPromptSubmit hook が毎プロンプト proactively に注入する。precision は意図的に deferred=後段の semantic
   段の仕事。同一語彙の偽陽性 leak は固有限界として許容し floor は上げない・**coverage gate も入れない**

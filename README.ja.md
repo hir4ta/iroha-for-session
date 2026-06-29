@@ -12,7 +12,7 @@ Notion に整理して保存します。
 次に開くセッションは——自分のでもチームメイトのでも——ちゃんと続きから始められます。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/hir4ta/iroha-for-session/actions/workflows/ci.yml/badge.svg)](https://github.com/hir4ta/iroha-for-session/actions/workflows/ci.yml)
+[![CI](https://github.com/hir4ta/iroha-for-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/hir4ta/iroha-for-memory/actions/workflows/ci.yml)
 
 ## こんな課題に
 
@@ -82,8 +82,8 @@ graph TD
 Claude Code の中で:
 
 ```
-/plugin marketplace add hir4ta/iroha-for-session
-/plugin install iroha@iroha-for-session
+/plugin marketplace add hir4ta/iroha-for-memory
+/plugin install iroha@iroha-for-memory
 ```
 
 ## はじめかた

@@ -30,7 +30,7 @@ export interface SearchHit {
 }
 
 // Ultra-common English function words carry no lexical signal. Romaji identifiers like
-// "iroha-for-session" inject them into the corpus, so without this a cross-domain query leaks on
+// "iroha-for-memory" inject them into the corpus, so without this a cross-domain query leaks on
 // the shared "for". CJK 2-grams are never in this set, so Japanese recall is untouched.
 const STOP = new Set([
   "a",

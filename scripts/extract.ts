@@ -1,4 +1,4 @@
-// iroha-for-session — deterministic transcript extraction.
+// iroha-for-memory — deterministic transcript extraction.
 // Reads a Claude Code session JSONL (~/.claude/projects/<hash>/<id>.jsonl) and emits
 // noise-free, deterministic views for /iroha:save-session. Read-only.
 // stdout = the requested view only; diagnostics go to stderr.

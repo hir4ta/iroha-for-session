@@ -1,6 +1,6 @@
 ---
 name: init
-description: One-time setup for iroha-for-session. Creates the Sessions and Decisions databases in the user's Notion via the connected Notion MCP, then records their ids locally. Run before the first /save-session, or to reconnect / join a teammate's existing iroha workspace. Triggers on "/iroha:init", "set up iroha", "initialize notion memory".
+description: One-time setup for iroha-for-memory. Creates the Sessions and Decisions databases in the user's Notion via the connected Notion MCP, then records their ids locally. Run before the first /save-session, or to reconnect / join a teammate's existing iroha workspace. Triggers on "/iroha:init", "set up iroha", "initialize notion memory".
 argument-hint: "[notion-parent-page-url]"
 ---
 
@@ -51,7 +51,7 @@ API token.
 5. **Create the three databases** directly under that page with `notion-create-database`,
    which takes **SQL DDL** (`CREATE TABLE`). Do NOT use `RELATION` columns (the MCP
    relation write path is buggy); link records with a `URL` column instead. Replace
-   `iroha-for-session` in the `Project` option with the current project name
+   `iroha-for-memory` in the `Project` option with the current project name
    (basename of the user's cwd). **Note:** `notion-create-pages` does **not**
    auto-create a missing `SELECT` option — writing an unseeded `Project` value returns a
    400. Adding a *second* project later is handled by `save-session` (it ALTERs the
@@ -72,14 +72,14 @@ API token.
 
    ```
    parent: {"type":"page_id","page_id":"<PAGE_ID>"}   title: "Sessions"
-   schema: CREATE TABLE ("Name" TITLE, "Date" DATE, "Project" SELECT('iroha-for-session':blue), "Branch" RICH_TEXT, "PR" URL, "Author" RICH_TEXT, "Summary" RICH_TEXT, "Status" SELECT('Complete':green, 'WIP':yellow, 'Interrupted':red), "Type" MULTI_SELECT('Research':blue, 'Requirements':purple, 'Design':orange, 'Implementation':green, 'Fix':red, 'Refactor':brown, 'Review':gray))
+   schema: CREATE TABLE ("Name" TITLE, "Date" DATE, "Project" SELECT('iroha-for-memory':blue), "Branch" RICH_TEXT, "PR" URL, "Author" RICH_TEXT, "Summary" RICH_TEXT, "Status" SELECT('Complete':green, 'WIP':yellow, 'Interrupted':red), "Type" MULTI_SELECT('Research':blue, 'Requirements':purple, 'Design':orange, 'Implementation':green, 'Fix':red, 'Refactor':brown, 'Review':gray))
    ```
 
    Decisions:
 
    ```
    parent: {"type":"page_id","page_id":"<PAGE_ID>"}   title: "Decisions"
-   schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-session':blue), "Topic" SELECT('general':gray), "Status" SELECT('Active':green, 'Superseded':gray), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Supersedes" URL, "Date" DATE)
+   schema: CREATE TABLE ("Name" TITLE, "Project" SELECT('iroha-for-memory':blue), "Topic" SELECT('general':gray), "Status" SELECT('Active':green, 'Superseded':gray), "Tags" MULTI_SELECT('architecture':blue, 'dependency':orange, 'process':gray), "Rationale" RICH_TEXT, "Alternatives" RICH_TEXT, "Session" URL, "Supersedes" URL, "Date" DATE)
    ```
 
    `Topic` is a first-class **SELECT** (the `<topic>` half of the `<topic>: <choice>` Name):

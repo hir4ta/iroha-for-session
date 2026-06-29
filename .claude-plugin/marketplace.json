@@ -1,15 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-  "name": "iroha-for-session",
+  "name": "iroha-for-memory",
   "owner": { "name": "Shunichi Hirata" },
-  "description": "iroha-for-session marketplace (single-plugin, self-hosted)",
+  "description": "iroha-for-memory marketplace (single-plugin, self-hosted)",
   "plugins": [
     {
       "name": "iroha",
       "source": "./",
       "description": "Persist Claude Code sessions to Notion as living, queryable team memory: decisions (with rationale and rejected alternatives), dev rules, work-state, real-message chat highlights, per-session metrics, and per-project architecture profiles — plus period digests and a memory-health audit.",
-      "homepage": "https://github.com/hir4ta/iroha-for-session",
-      "repository": "https://github.com/hir4ta/iroha-for-session",
+      "homepage": "https://github.com/hir4ta/iroha-for-memory",
+      "repository": "https://github.com/hir4ta/iroha-for-memory",
       "license": "MIT",
       "keywords": [
         "notion",
